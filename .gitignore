@@ -1,0 +1,13 @@
+# Dependencies and generated bundles
+node_modules/
+dist/
+
+# Local environment and temporary files
+.env
+.env.*
+!.env.example
+tmp/
+*.log
+
+# Operating system metadata
+.DS_Store
