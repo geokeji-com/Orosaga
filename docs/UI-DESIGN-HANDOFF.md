@@ -531,3 +531,6 @@ styles/
 3. 当前 `src/styles.css` 已承载多页面样式。YiShanOS 迁移时应先抽令牌与共享组件，再按页面域拆分，避免继续复制选择器。
 4. CSS 山水可以复用构造方式，但应调整轮廓和内容位置，形成 YiShanOS 自己的场景，而不是生成完全相同的首页截图。
 
+## 19. 云服务重构后的路径
+
+本文件保留原型期的视觉取值；当前实现入口已迁至 `apps/web/src`，共享云端样式位于 `apps/web/src/styles`，品牌图标位于 `apps/web/public`。员工头像已移出 Web 构建边界，迁移源位于 `seed/private/team`，生产由受保护 API 返回私有 OSS 短期签名地址。

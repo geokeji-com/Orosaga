@@ -1,0 +1,473 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  EMPLOYEE
+  EDITOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum SyncKind {
+  ORGANIZATION
+  WIKI
+}
+
+enum SyncStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+/// 飞书同步的内部用户。
+model User {
+  /// 内部稳定标识。
+  id          String      @id @default(uuid()) @db.Uuid
+  /// 当前飞书应用内的外部标识。
+  openId      String      @unique @map("open_id")
+  /// 门户显示名。
+  displayName String      @map("display_name")
+  /// 本地授权角色。
+  role        Role        @default(EMPLOYEE)
+  /// 在职状态。
+  status      UserStatus  @default(ACTIVE)
+  /// 创建时间。
+  createdAt   DateTime    @default(now()) @map("created_at")
+  /// 更新时间。
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  sessions    Session[]
+  profile     EmployeeProfile?
+  auditLogs   AuditLog[]  @relation("AuditActor")
+  revisions   ContentRevision[]
+
+  @@map("users")
+}
+
+/// 服务端登录会话，只保存摘要。
+model Session {
+  /// 会话标识。
+  id         String    @id @default(uuid()) @db.Uuid
+  /// 所属用户。
+  userId     String    @map("user_id") @db.Uuid
+  /// 随机令牌摘要。
+  tokenHash  String    @unique @map("token_hash")
+  /// CSRF 令牌摘要。
+  csrfHash   String    @map("csrf_hash")
+  /// 绝对过期时间。
+  expiresAt  DateTime  @map("expires_at")
+  /// 主动撤销时间。
+  revokedAt  DateTime? @map("revoked_at")
+  /// 创建时间。
+  createdAt  DateTime  @default(now()) @map("created_at")
+  /// 最后使用时间。
+  lastSeenAt DateTime  @default(now()) @map("last_seen_at")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@map("sessions")
+}
+
+/// 飞书部门镜像。
+model Department {
+  /// 内部稳定标识。
+  id         String    @id @default(uuid()) @db.Uuid
+  /// 飞书部门标识。
+  externalId String    @unique @map("external_id")
+  /// 部门名称。
+  name       String
+  /// 父部门内部标识。
+  parentId   String?   @map("parent_id") @db.Uuid
+  /// 是否仍有效。
+  active     Boolean   @default(true)
+  /// 同步更新时间。
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  parent     Department?  @relation("DepartmentTree", fields: [parentId], references: [id])
+  children   Department[] @relation("DepartmentTree")
+  profiles   EmployeeProfile[]
+
+  @@map("departments")
+}
+
+/// 门户维护的员工扩展资料。
+model EmployeeProfile {
+  /// 内部稳定标识。
+  id             String      @id @default(uuid()) @db.Uuid
+  /// 一对一用户标识。
+  userId         String      @unique @map("user_id") @db.Uuid
+  /// 当前所属部门。
+  departmentId   String?     @map("department_id") @db.Uuid
+  /// 门户简介。
+  bio            String      @default("")
+  /// 门户展示职能称谓。
+  portalTitle    String      @default("") @map("portal_title")
+  /// 可咨询事项列表。
+  consultTopics  Json        @default("[]") @map("consult_topics")
+  /// 协作标签列表。
+  tags           Json        @default("[]")
+  /// 私有头像资产标识。
+  avatarAssetId  String?     @map("avatar_asset_id") @db.Uuid
+  /// 是否在组织页展示。
+  visible        Boolean     @default(true)
+  /// 扩展资料乐观锁版本。
+  version        Int         @default(0)
+  /// 更新时间。
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department     Department? @relation(fields: [departmentId], references: [id])
+  avatarAsset    Asset?      @relation(fields: [avatarAssetId], references: [id])
+
+  @@map("employee_profiles")
+}
+
+/// 可发布的公司与首页内容。
+model ContentPage {
+  /// 页面稳定标识。
+  id                String             @id @default(uuid()) @db.Uuid
+  /// 路由唯一键。
+  slug              String             @unique
+  /// 受控页面类型。
+  pageType          String             @map("page_type")
+  /// 当前不可变版本标识。
+  currentRevisionId String?            @unique @map("current_revision_id") @db.Uuid
+  /// 乐观锁版本号。
+  version           Int                @default(0)
+  /// 更新时间。
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  currentRevision   ContentRevision?   @relation("CurrentRevision", fields: [currentRevisionId], references: [id])
+  revisions         ContentRevision[]  @relation("PageRevisions")
+
+  @@map("content_pages")
+}
+
+/// 页面不可变历史版本。
+model ContentRevision {
+  /// 历史版本标识。
+  id            String       @id @default(uuid()) @db.Uuid
+  /// 所属页面。
+  pageId        String       @map("page_id") @db.Uuid
+  /// 页面内递增版本号。
+  version       Int
+  /// 经 schema 校验的结构化内容。
+  payload       Json
+  /// 变更摘要。
+  changeSummary String       @map("change_summary")
+  /// 操作者。
+  actorId       String       @map("actor_id") @db.Uuid
+  /// 客户端 IP。
+  actorIp       String?      @map("actor_ip")
+  /// 创建时间。
+  createdAt     DateTime     @default(now()) @map("created_at")
+  page          ContentPage  @relation("PageRevisions", fields: [pageId], references: [id], onDelete: Cascade)
+  currentFor    ContentPage? @relation("CurrentRevision")
+  actor         User         @relation(fields: [actorId], references: [id])
+
+  @@unique([pageId, version])
+  @@map("content_revisions")
+}
+
+/// 受控导航树节点。
+model NavigationItem {
+  /// 导航标识。
+  id        String   @id @default(uuid()) @db.Uuid
+  /// 父节点标识。
+  parentId  String?  @map("parent_id") @db.Uuid
+  /// 显示标题。
+  label     String
+  /// 站内路由。
+  route     String
+  /// 图标白名单键。
+  iconKey   String   @map("icon_key")
+  /// 同层排序值。
+  sortOrder Int      @default(0) @map("sort_order")
+  /// 是否启用。
+  enabled   Boolean  @default(true)
+  parent    NavigationItem?  @relation("NavigationTree", fields: [parentId], references: [id])
+  children  NavigationItem[] @relation("NavigationTree")
+
+  @@map("navigation_items")
+}
+
+/// 可发布工作流定义。
+model WorkflowDefinition {
+  /// 工作流标识。
+  id          String          @id @default(uuid()) @db.Uuid
+  /// 路由唯一键。
+  slug        String          @unique
+  /// 工作流标题。
+  title       String
+  /// 当前版本号。
+  version     Int             @default(1)
+  /// 更新时间。
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  stages      WorkflowStage[]
+
+  @@map("workflow_definitions")
+}
+
+/// 工作流阶段及完成标准。
+model WorkflowStage {
+  /// 阶段标识。
+  id           String             @id @default(uuid()) @db.Uuid
+  /// 所属工作流。
+  workflowId   String             @map("workflow_id") @db.Uuid
+  /// 阶段标题。
+  title        String
+  /// 阶段说明。
+  description  String             @default("")
+  /// 图标白名单键。
+  iconKey      String             @map("icon_key")
+  /// 同层排序值。
+  sortOrder    Int                @map("sort_order")
+  workflow     WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  items        WorkflowItem[]
+
+  @@unique([workflowId, sortOrder])
+  @@map("workflow_stages")
+}
+
+/// 工作流阶段输入、动作、标准或产物。
+model WorkflowItem {
+  /// 条目标识。
+  id        String        @id @default(uuid()) @db.Uuid
+  /// 所属阶段。
+  stageId   String        @map("stage_id") @db.Uuid
+  /// 受控条目类型。
+  itemType  String        @map("item_type")
+  /// 显示内容。
+  content   String
+  /// 同层排序值。
+  sortOrder Int           @map("sort_order")
+  stage     WorkflowStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  @@unique([stageId, itemType, sortOrder])
+  @@map("workflow_items")
+}
+
+/// 系统入口分组。
+model SystemLinkGroup {
+  /// 分组标识。
+  id        String       @id @default(uuid()) @db.Uuid
+  /// 分组标题。
+  title     String
+  /// 同层排序值。
+  sortOrder Int          @map("sort_order")
+  /// 当前版本号。
+  version   Int          @default(1)
+  links     SystemLink[]
+
+  @@map("system_link_groups")
+}
+
+/// 经过域名白名单治理的外部系统入口。
+model SystemLink {
+  /// 入口标识。
+  id           String          @id @default(uuid()) @db.Uuid
+  /// 所属分组。
+  groupId      String          @map("group_id") @db.Uuid
+  /// 显示标题。
+  title        String
+  /// 入口说明。
+  description  String          @default("")
+  /// 仅允许 HTTPS 的目标地址。
+  url          String
+  /// 目标环境。
+  environment  String          @default("production")
+  /// 最低可见角色。
+  minimumRole  Role            @default(EMPLOYEE) @map("minimum_role")
+  /// 图标白名单键。
+  iconKey      String          @map("icon_key")
+  /// 是否启用。
+  enabled      Boolean         @default(false)
+  /// 同层排序值。
+  sortOrder    Int             @map("sort_order")
+  group        SystemLinkGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@map("system_links")
+}
+
+/// 私有 OSS 对象元数据。
+model Asset {
+  /// 资产标识。
+  id        String   @id @default(uuid()) @db.Uuid
+  /// 私有对象键。
+  objectKey String   @unique @map("object_key")
+  /// MIME 类型。
+  mimeType  String   @map("mime_type")
+  /// 内容哈希。
+  sha256    String
+  /// 字节大小。
+  size      Int
+  /// 所有者用户。
+  ownerId   String?  @map("owner_id") @db.Uuid
+  /// 创建时间。
+  createdAt DateTime @default(now()) @map("created_at")
+  profiles  EmployeeProfile[]
+
+  @@map("assets")
+}
+
+/// 飞书知识空间同步配置。
+model KnowledgeSource {
+  /// 来源标识。
+  id             String    @id @default(uuid()) @db.Uuid
+  /// 配置名称。
+  name           String
+  /// 飞书知识空间标识。
+  spaceId        String    @map("space_id")
+  /// 根节点 token。
+  rootNodeToken  String    @map("root_node_token")
+  /// 明确排除的节点 token 列表。
+  excludedTokens Json      @default("[]") @map("excluded_tokens")
+  /// 同步周期分钟数。
+  intervalMins   Int       @default(30) @map("interval_mins")
+  /// 是否启用。
+  enabled        Boolean   @default(true)
+  /// 配置乐观锁版本。
+  version        Int       @default(1)
+  /// 最近成功同步时间。
+  lastSuccessAt  DateTime? @map("last_success_at")
+  nodes          WikiNode[]
+  camps          Camp[]
+
+  @@unique([spaceId, rootNodeToken])
+  @@map("knowledge_sources")
+}
+
+/// 飞书 Wiki 节点元数据镜像。
+model WikiNode {
+  /// 内部稳定标识。
+  id                String          @id @default(uuid()) @db.Uuid
+  /// 所属知识来源。
+  sourceId          String          @map("source_id") @db.Uuid
+  /// 外部节点唯一 token。
+  externalNodeToken String          @unique @map("external_node_token")
+  /// 外部父节点 token。
+  parentNodeToken   String?         @map("parent_node_token")
+  /// 节点标题。
+  title             String
+  /// 飞书节点类型。
+  nodeType          String          @map("node_type")
+  /// 返回飞书的 HTTPS 地址。
+  url               String
+  /// 飞书作者元数据。
+  authorMetadata    Json?           @map("author_metadata")
+  /// 最近一次发现时间。
+  discoveredAt      DateTime        @default(now()) @map("discovered_at")
+  /// 软删除时间。
+  deletedAt         DateTime?       @map("deleted_at")
+  source            KnowledgeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  camp              Camp?
+
+  @@index([sourceId, parentNodeToken])
+  @@map("wiki_nodes")
+}
+
+/// 对应 Wiki 根节点的稳定营地展示实体。
+model Camp {
+  /// 内部稳定标识。
+  id                    String          @id @default(uuid()) @db.Uuid
+  /// 所属知识来源。
+  sourceId              String          @map("source_id") @db.Uuid
+  /// 根 Wiki 节点。
+  rootNodeId            String          @unique @map("root_node_id") @db.Uuid
+  /// 一次性分配的 CAMP 展示编号。
+  displayCode           String          @unique @map("display_code")
+  /// 兼容旧版全部后代计数。
+  legacyDescendantCount Int             @default(0) @map("legacy_descendant_count")
+  /// 明确文档类型计数。
+  documentCount         Int             @default(0) @map("document_count")
+  /// 首页排序值。
+  sortOrder             Int             @map("sort_order")
+  /// 是否展示。
+  enabled               Boolean         @default(true)
+  source                KnowledgeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  rootNode              WikiNode        @relation(fields: [rootNodeId], references: [id])
+
+  @@map("camps")
+}
+
+/// 组织或 Wiki 同步运行记录。
+model SyncRun {
+  /// 运行标识。
+  id         String     @id @default(uuid()) @db.Uuid
+  /// 同步类别。
+  kind       SyncKind
+  /// 当前状态。
+  status     SyncStatus
+  /// 发现数量。
+  discovered Int        @default(0)
+  /// 新增数量。
+  inserted   Int        @default(0)
+  /// 更新数量。
+  updated    Int        @default(0)
+  /// 软删数量。
+  softDeleted Int       @default(0) @map("soft_deleted")
+  /// 跳过数量。
+  skipped    Int        @default(0)
+  /// 错误摘要。
+  error      String?
+  /// 开始时间。
+  startedAt  DateTime   @default(now()) @map("started_at")
+  /// 结束时间。
+  finishedAt DateTime?  @map("finished_at")
+
+  @@index([kind, startedAt])
+  @@map("sync_runs")
+}
+
+/// 工作流、系统入口等资源的不可变快照。
+model ResourceRevision {
+  /// 快照标识。
+  id            String   @id @default(uuid()) @db.Uuid
+  /// 受控资源类型。
+  resourceType  String   @map("resource_type")
+  /// 资源内部标识。
+  resourceId    String   @map("resource_id") @db.Uuid
+  /// 资源内递增版本号。
+  version       Int
+  /// 完整结构化快照。
+  payload       Json
+  /// 操作者。
+  actorId       String   @map("actor_id") @db.Uuid
+  /// 变更摘要。
+  changeSummary String   @map("change_summary")
+  /// 创建时间。
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([resourceType, resourceId, version])
+  @@index([resourceType, resourceId, createdAt])
+  @@map("resource_revisions")
+}
+
+/// 安全和内容管理审计日志。
+model AuditLog {
+  /// 审计标识。
+  id           String   @id @default(uuid()) @db.Uuid
+  /// 可为空的操作者。
+  actorId      String?  @map("actor_id") @db.Uuid
+  /// 原子操作名。
+  action       String
+  /// 目标类型。
+  resourceType String   @map("resource_type")
+  /// 目标标识。
+  resourceId   String?  @map("resource_id")
+  /// 请求 IP。
+  ipAddress    String?  @map("ip_address")
+  /// 非敏感审计上下文。
+  metadata     Json?
+  /// 创建时间。
+  createdAt    DateTime @default(now()) @map("created_at")
+  actor        User?    @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([resourceType, resourceId, createdAt])
+  @@map("audit_logs")
+}

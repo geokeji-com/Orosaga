@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16.14-alpine3.23
+    environment:
+      POSTGRES_DB: orosaga
+      POSTGRES_USER: orosaga
+      POSTGRES_PASSWORD: orosaga
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orosaga -d orosaga"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file: .env
+    command:
+      [
+        "sh",
+        "-c",
+        "cd apps/api && node ../../node_modules/prisma/build/index.js migrate deploy && node ../../node_modules/tsx/dist/cli.mjs prisma/seed.ts",
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file: .env
+    volumes:
+      - ./seed/private:/app/seed/private:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    env_file: .env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+volumes:
+  postgres-data:

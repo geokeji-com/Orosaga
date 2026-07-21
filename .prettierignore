@@ -1,0 +1,8 @@
+node_modules
+**/dist
+**/coverage
+seed/legacy
+seed/private
+docs/UI-DESIGN-HANDOFF.md
+apps/api/prisma/migrations
+package-lock.json

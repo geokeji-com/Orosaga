@@ -1,31 +1,46 @@
 {
   "name": "orosaga",
+  "version": "1.0.0",
   "private": true,
-  "version": "0.1.0",
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "sync:camps": "node scripts/sync-feishu-camps.mjs"
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": "24.17.x"
   },
-  "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "lucide-react": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "vite": "latest"
+  "packageManager": "npm@11.6.2",
+  "scripts": {
+    "dev": "npm run dev -w @orosaga/web",
+    "dev:all": "node scripts/dev-all.mjs",
+    "build": "npm run build -w @orosaga/contracts && npm run build -w @orosaga/config && npm run build -ws --if-present",
+    "lint": "eslint .",
+    "typecheck": "npm run typecheck -ws --if-present",
+    "test": "npm run test -ws --if-present",
+    "test:coverage": "npm run test:coverage -ws --if-present",
+    "test:e2e": "playwright test",
+    "test:e2e:update": "playwright test --update-snapshots",
+    "db:generate": "npm run prisma:generate -w @orosaga/api",
+    "db:migrate": "npm run prisma:migrate -w @orosaga/api",
+    "db:seed": "npm run prisma:seed -w @orosaga/api",
+    "check:sql-comments": "node scripts/check-sql-comments.mjs apps/api/prisma/migrations/202607210001_initial_cloud/migration.sql",
+    "check:bundle": "node scripts/check-bundle-budget.mjs apps/web/dist/assets && node scripts/scan-web-bundle.mjs apps/web/dist",
+    "check:security": "node scripts/scan-secrets.mjs && node scripts/check-licenses.mjs"
   },
   "devDependencies": {
-    "@eslint/js": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "eslint": "latest",
-    "eslint-plugin-react-hooks": "latest",
-    "eslint-plugin-react-refresh": "latest",
-    "globals": "latest",
-    "typescript": "~5.9.3",
-    "typescript-eslint": "latest"
+    "@axe-core/playwright": "4.12.1",
+    "@eslint/js": "9.39.1",
+    "@playwright/test": "1.61.1",
+    "@vitest/coverage-v8": "4.1.10",
+    "eslint": "9.39.1",
+    "eslint-plugin-react-hooks": "7.0.1",
+    "eslint-plugin-react-refresh": "0.5.3",
+    "globals": "17.7.0",
+    "prettier": "3.9.6",
+    "tsx": "4.23.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.65.0",
+    "vitest": "4.1.10"
   }
 }

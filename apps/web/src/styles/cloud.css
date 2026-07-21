@@ -1,0 +1,207 @@
+.route-state {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 32px;
+  text-align: center;
+  background: var(--paper);
+}
+.route-state img {
+  width: 64px;
+}
+.route-state h1,
+.route-state p {
+  margin: 0;
+}
+.route-state > span {
+  color: var(--green);
+  font: 700 1rem var(--serif);
+  letter-spacing: 0.15em;
+}
+.route-state button,
+.route-state a {
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  cursor: pointer;
+}
+.search-results a.is-active {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+.content-blocks {
+  display: grid;
+  gap: 36px;
+  padding-block: 64px 100px;
+}
+.content-block,
+.content-cards article,
+.content-faq details,
+.content-metrics dl {
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: white;
+}
+.content-block p {
+  white-space: pre-wrap;
+  line-height: 1.8;
+}
+.content-metrics,
+.content-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+}
+.content-metrics dl {
+  margin: 0;
+}
+.content-metrics dd {
+  margin: 8px 0 0;
+  font: 700 2rem var(--serif);
+}
+.content-faq {
+  display: grid;
+  gap: 12px;
+}
+.admin-shell {
+  min-height: 100vh;
+  background: #f2f4ef;
+}
+.admin-topbar {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 max(24px, calc((100vw - 1180px) / 2));
+  border-bottom: 1px solid var(--line);
+  background: white;
+}
+.admin-topbar a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.admin-layout {
+  width: min(1180px, calc(100% - 40px));
+  margin: 40px auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+}
+.admin-editor,
+.admin-history,
+.admin-operations {
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: white;
+}
+.admin-editor label {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+  font-weight: 600;
+}
+.admin-editor input,
+.admin-editor textarea,
+.admin-editor select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.admin-editor .primary-button {
+  border: 0;
+  cursor: pointer;
+}
+.admin-alert {
+  margin: 16px 0;
+  padding: 12px;
+  border-radius: 10px;
+  color: #8b2d25;
+  background: #fff1ee;
+}
+.admin-history h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.admin-history article {
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+.admin-history article div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.admin-history time {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.admin-history button,
+.admin-operations button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+}
+.admin-operations {
+  grid-column: 1 / -1;
+}
+.admin-operations div {
+  display: flex;
+  gap: 10px;
+}
+.admin-source {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.admin-source legend {
+  padding: 0 8px;
+  font-weight: 700;
+}
+.admin-source label {
+  display: grid;
+  gap: 6px;
+}
+.admin-source label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+}
+.admin-source input:not([type="checkbox"]),
+.admin-source textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.admin-source textarea,
+.admin-source button,
+.admin-source > span {
+  grid-column: 1 / -1;
+}
+@media (max-width: 800px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+  }
+  .admin-topbar span {
+    display: none;
+  }
+  .admin-source {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,12 +1,16 @@
 # Dependencies and generated bundles
 node_modules/
 dist/
+**/dist/
+coverage/
 
 # Local environment and temporary files
 .env
 .env.*
 !.env.example
 tmp/
+playwright-report/
+test-results/
 *.log
 
 # Operating system metadata
