@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ContentPage } from "@orosaga/contracts";
 import { api } from "./lib/api";
+import { Brand, BrandMark } from "./components/Brand";
 import {
   ArrowRight,
   BookOpenText,
@@ -272,17 +273,20 @@ function HomePage() {
     setMenuOpen(false);
     setQuery("");
   };
+  const homeContent = homePage.data?.content;
+  const homeTitle =
+    homeContent && "summary" in homeContent
+      ? homeContent.title
+      : "Orosaga 山海经";
+  const homeSummary =
+    homeContent && "summary" in homeContent
+      ? homeContent.summary
+      : "一张持续生长的公司知识地图。认识我们为何出发，也找到你接下来要走的路。";
 
   return (
     <div className="site-shell">
       <header className="topbar">
-        <a className="brand" href="#top" aria-label="Orosaga 山海经首页">
-          <img src="/favicon.svg" alt="" />
-          <span className="brand-copy">
-            <strong>Orosaga</strong>
-            <small>山海经</small>
-          </span>
-        </a>
+        <Brand href="#top" ariaLabel="Orosaga 山海经首页" />
 
         <nav
           className={menuOpen ? "main-nav is-open" : "main-nav"}
@@ -341,16 +345,10 @@ function HomePage() {
                 <Compass size={15} /> 移山科技内部知识站
               </div>
               <h1 id="hero-title">
-                <span>
-                  {homePage.data?.content.title.split(" ")[0] ?? "Orosaga"}
-                </span>
-                {homePage.data?.content.title.split(" ").slice(1).join(" ") ??
-                  "山海经"}
+                <span>{homeTitle.split(" ")[0]}</span>
+                {homeTitle.split(" ").slice(1).join(" ")}
               </h1>
-              <p>
-                {homePage.data?.content.summary ??
-                  "一张持续生长的公司知识地图。认识我们为何出发，也找到你接下来要走的路。"}
-              </p>
+              <p>{homeSummary}</p>
               <div className="hero-actions">
                 <a className="primary-button" href="#journey">
                   开始新手旅程 <ArrowRight size={17} />
@@ -612,7 +610,7 @@ function HomePage() {
           id="closing"
           aria-label="共建知识库"
         >
-          <img src="/favicon.svg" alt="Orosaga 山海标识" />
+          <BrandMark alt="Orosaga 山海标识" />
           <div>
             <span className="eyebrow">A living map · 一张活地图</span>
             <h2>每一份经验，都可以成为后来者的路标。</h2>
@@ -624,13 +622,7 @@ function HomePage() {
       </main>
 
       <footer>
-        <a className="brand footer-brand" href="#top">
-          <img src="/favicon.svg" alt="" />
-          <span className="brand-copy">
-            <strong>Orosaga</strong>
-            <small>山海经</small>
-          </span>
-        </a>
+        <Brand className="footer-brand" href="#top" />
         <p>移山科技共同知识库 · 持续生长中</p>
         <span>© 2026 Yishan Technology</span>
       </footer>

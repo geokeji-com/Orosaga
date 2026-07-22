@@ -4817,7 +4817,8 @@ footer > span {
   font-size: 20px;
 }
 
-.camps-ending a {
+.camps-ending a,
+.camps-ending-access {
   min-height: 42px;
   padding: 0 16px;
   display: inline-flex;
@@ -5452,7 +5453,8 @@ footer > span {
     grid-template-columns: auto 1fr;
   }
 
-  .camps-ending a {
+  .camps-ending a,
+  .camps-ending-access {
     grid-column: 1 / -1;
     justify-content: center;
   }

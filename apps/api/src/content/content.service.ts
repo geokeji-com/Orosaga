@@ -5,7 +5,8 @@ import {
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import {
-  contentPayloadSchema,
+  companyContentPayloadSchema,
+  portalContentPayloadSchema,
   saveContentPageSchema,
 } from "@orosaga/contracts";
 import { z } from "zod";
@@ -41,10 +42,12 @@ export class ContentService {
       .object({
         slug: z.string().regex(/^[a-z0-9-]+$/),
         pageType: z.enum(["HOME", "COMPANY", "ARTICLE"]),
-        payload: contentPayloadSchema,
+        payload: portalContentPayloadSchema,
         changeSummary: z.string().min(1).max(200),
       })
       .parse(input);
+    if (data.pageType === "COMPANY")
+      companyContentPayloadSchema.parse(data.payload);
     return this.prisma.$transaction(async (tx) => {
       const page = await tx.contentPage.create({
         data: { slug: data.slug, pageType: data.pageType },
@@ -86,6 +89,8 @@ export class ContentService {
           code: "PAGE_NOT_FOUND",
           message: "页面不存在",
         });
+      if (page.pageType === "COMPANY")
+        companyContentPayloadSchema.parse(data.content);
       if (page.version !== data.expectedVersion)
         throw new ConflictException({
           code: "VERSION_CONFLICT",

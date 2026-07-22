@@ -1,6 +1,9 @@
 :root {
   font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK SC",
+    "Noto Sans SC",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
     sans-serif;
   color: #171b19;
   background: #f6f7f3;
@@ -13,5 +16,5 @@
   --line: rgba(23, 27, 25, 0.12);
   --blue: #2167eb;
   --green: #3e7a69;
-  --serif: ui-serif, "Songti SC", "Noto Serif CJK SC", serif;
+  --serif: "DM Serif Display", "Noto Serif SC", serif;
 }

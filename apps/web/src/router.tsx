@@ -10,6 +10,7 @@ const SystemsPage = lazy(() => import("./SystemsPage"));
 const WorkflowPage = lazy(() => import("./WorkflowPage"));
 const CampsPage = lazy(() => import("./CampsPage"));
 const AdminPage = lazy(() => import("./admin/AdminPage"));
+const LoginPage = lazy(() => import("./auth/LoginPage"));
 
 const pending = (element: ReactNode) => (
   <Suspense fallback={<main className="route-state">正在读取知识地图…</main>}>
@@ -37,6 +38,7 @@ function StatusPage({
 }
 
 export const router = createBrowserRouter([
+  { path: "/login", element: pending(<LoginPage />) },
   {
     element: <AuthGate />,
     children: [

@@ -14,6 +14,7 @@ export function useMe() {
 
 export function AuthGate() {
   const me = useMe();
+  const location = useLocation();
   if (me.isPending)
     return (
       <main className="route-state">
@@ -21,15 +22,12 @@ export function AuthGate() {
       </main>
     );
   if (me.error instanceof ApiError && me.error.status === 401) {
+    const returnTo = `${location.pathname}${location.search}${location.hash}`;
     return (
-      <main className="route-state">
-        <img src="/favicon.svg" alt="" />
-        <h1>Orosaga 山海经</h1>
-        <p>仅供移山科技内部员工访问。</p>
-        <a className="primary-button" href="/auth/feishu/login">
-          使用飞书登录
-        </a>
-      </main>
+      <Navigate
+        to={`/login?returnTo=${encodeURIComponent(returnTo)}`}
+        replace
+      />
     );
   }
   if (me.isError)

@@ -12,6 +12,7 @@ import {
 import type { Request, Response } from "express";
 import { AuthService } from "./auth.service.js";
 import { CurrentAuth, Public } from "./auth.decorators.js";
+import { safeReturnTo } from "./return-to.js";
 
 const secure = () => process.env.NODE_ENV === "production";
 const cookieBase = () => ({
@@ -26,9 +27,14 @@ export class AuthController {
 
   @Public()
   @Get("auth/feishu/login")
-  login(@Res() res: Response) {
+  login(@Query("returnTo") returnTo: string | undefined, @Res() res: Response) {
     const state = randomBytes(24).toString("base64url");
     res.cookie("orosaga_oauth_state", state, {
+      ...cookieBase(),
+      httpOnly: true,
+      maxAge: 10 * 60 * 1000,
+    });
+    res.cookie("orosaga_return_to", safeReturnTo(returnTo), {
       ...cookieBase(),
       httpOnly: true,
       maxAge: 10 * 60 * 1000,
@@ -50,16 +56,22 @@ export class AuthController {
       expected.length === state?.length &&
       expected.length > 0 &&
       timingSafeEqual(Buffer.from(expected), Buffer.from(state));
-    if (!code || !valid)
-      throw new UnauthorizedException({
-        code: "OAUTH_STATE_INVALID",
-        message: "登录状态校验失败",
-      });
-    const profile = await this.auth.exchangeCode(code);
-    const login = await this.auth.createLogin(profile.open_id, profile.name);
-    this.setSession(res, login.sessionToken, login.csrfToken);
-    res.clearCookie("orosaga_oauth_state", cookieBase());
-    res.redirect(process.env.PUBLIC_ORIGIN ?? "/");
+    if (!code || !valid) {
+      this.clearOauthCookies(res);
+      res.redirect("/login?error=oauth");
+      return;
+    }
+    try {
+      const profile = await this.auth.exchangeCode(code);
+      const login = await this.auth.createLogin(profile.open_id, profile.name);
+      this.setSession(res, login.sessionToken, login.csrfToken);
+      const returnTo = safeReturnTo(req.cookies?.orosaga_return_to);
+      this.clearOauthCookies(res);
+      res.redirect(returnTo);
+    } catch {
+      this.clearOauthCookies(res);
+      res.redirect("/login?error=oauth");
+    }
   }
 
   @Public()
@@ -108,5 +120,10 @@ export class AuthController {
       httpOnly: false,
       maxAge: 8 * 60 * 60 * 1000,
     });
+  }
+
+  private clearOauthCookies(res: Response) {
+    res.clearCookie("orosaga_oauth_state", cookieBase());
+    res.clearCookie("orosaga_return_to", cookieBase());
   }
 }
