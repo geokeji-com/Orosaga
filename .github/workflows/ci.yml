@@ -56,6 +56,9 @@ jobs:
           NODE_ENV: production
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      - name: Generate reviewable Linux visual baselines after failure
+        if: failure()
+        run: npx playwright test tests/e2e/visual.spec.ts --update-snapshots
       - name: Upload generated Linux visual baselines on failure
         if: failure()
         uses: actions/upload-artifact@v4
