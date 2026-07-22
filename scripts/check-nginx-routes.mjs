@@ -54,6 +54,7 @@ try {
   for (const [path, expected] of [
     ["/", 200],
     ["/favicon.svg", 200],
+    ["/login", 200],
     ["/company", 200],
     ["/workflow/example", 200],
     ["/does-not-exist", 404],

@@ -9,7 +9,7 @@ test.beforeEach(async ({ context }) => {
 test("protected portal routes and real 404 work", async ({ page }) => {
   const routes = [
     ["/", "Orosaga"],
-    ["/company", "关于移山科技"],
+    ["/company", "先把移山科技说清楚"],
     ["/organization", "找到一起把事情做好的人"],
     ["/systems", "先知道在哪做"],
     ["/workflow", "把一次项目"],

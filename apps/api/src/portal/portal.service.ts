@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { organizationQuerySchema } from "@orosaga/contracts";
+import {
+  organizationQuerySchema,
+  saveWorkflowSchema,
+} from "@orosaga/contracts";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { workflowDefault } from "./workflow-default.js";
 
 const roleRank = { EMPLOYEE: 1, EDITOR: 2, ADMIN: 3 } as const;
 
@@ -100,35 +104,48 @@ export class PortalService {
         code: "WORKFLOW_NOT_FOUND",
         message: "工作流不存在",
       });
+    const latestRevision = await this.prisma.resourceRevision.findFirst({
+      where: { resourceType: "workflow", resourceId: workflow.id },
+      orderBy: { version: "desc" },
+    });
+    const revision = saveWorkflowSchema.safeParse(latestRevision?.payload);
     return {
       id: workflow.id,
       slug: workflow.slug,
       title: workflow.title,
       version: workflow.version,
-      stages: workflow.stages.map((stage) => ({
-        id: stage.id,
-        key: `stage-${stage.sortOrder}`,
-        title: stage.title,
-        shortTitle: stage.title,
-        summary: stage.description,
-        owner: "",
-        system: "",
-        iconKey: stage.iconKey,
-        inputs: stage.items
-          .filter((item) => item.itemType === "INPUT")
-          .map((item) => item.content),
-        actions: stage.items
-          .filter((item) => item.itemType === "ACTION")
-          .map((item) => item.content),
-        done: stage.items
-          .filter((item) => item.itemType === "DONE")
-          .map((item) => item.content),
-        outputs: stage.items
-          .filter((item) => item.itemType === "OUTPUT")
-          .map((item) => item.content),
-        next: "",
-        position: stage.sortOrder,
-      })),
+      stages: workflow.stages.map((stage, index) => {
+        const metadata = revision.success
+          ? revision.data.stages[index]
+          : workflow.slug === "geo-operating"
+            ? workflowDefault.stages[index]
+            : undefined;
+        return {
+          ...metadata,
+          id: stage.id,
+          key: metadata?.key ?? `stage-${stage.sortOrder}`,
+          title: stage.title,
+          shortTitle: metadata?.shortTitle ?? stage.title,
+          summary: stage.description,
+          owner: metadata?.owner ?? "",
+          system: metadata?.system ?? "",
+          iconKey: stage.iconKey,
+          inputs: stage.items
+            .filter((item) => item.itemType === "INPUT")
+            .map((item) => item.content),
+          actions: stage.items
+            .filter((item) => item.itemType === "ACTION")
+            .map((item) => item.content),
+          done: stage.items
+            .filter((item) => item.itemType === "DONE")
+            .map((item) => item.content),
+          outputs: stage.items
+            .filter((item) => item.itemType === "OUTPUT")
+            .map((item) => item.content),
+          next: metadata?.next ?? "",
+          position: stage.sortOrder,
+        };
+      }),
     };
   }
 

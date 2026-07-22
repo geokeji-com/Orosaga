@@ -1,9 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ChevronRight, Search, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  BriefcaseBusiness,
+  ChevronRight,
+  CircleUserRound,
+  Mail,
+  MapPin,
+  Network,
+  Search,
+  Sparkles,
+  Users,
+  X,
+} from "lucide-react";
 import type { Department, Employee } from "@orosaga/contracts";
 import { api } from "./lib/api";
 import { compareEmployees } from "./organization-order";
+import { Brand } from "./components/Brand";
 
 async function allMembers() {
   const items: Employee[] = [];
@@ -18,6 +32,43 @@ async function allMembers() {
     cursor = response.nextCursor;
   } while (cursor);
   return items;
+}
+
+function departmentPresentation(name: string) {
+  if (/销售/.test(name))
+    return {
+      order: 1,
+      color: "blue",
+      short: "Sales",
+      description: "连接客户需求与公司解决方案",
+    };
+  if (/运营/.test(name))
+    return {
+      order: 2,
+      color: "green",
+      short: "Operations",
+      description: "把客户目标变成可交付的结果",
+    };
+  if (/技术|研发|产品/.test(name))
+    return {
+      order: 3,
+      color: "violet",
+      short: "Technology",
+      description: "把方法沉淀成系统与工具",
+    };
+  if (/人力|行政|人才/.test(name))
+    return {
+      order: 4,
+      color: "rose",
+      short: "People",
+      description: "让组织与每个人持续成长",
+    };
+  return {
+    order: 10,
+    color: "amber",
+    short: "Team",
+    description: "连接专业能力与团队共同目标",
+  };
 }
 
 function Avatar({
@@ -109,6 +160,16 @@ function ProfileModal({
           <h2>{person.displayName}</h2>
         </div>
         <div className="profile-card-body">
+          <div className="profile-fact">
+            <MapPin size={15} />
+            <span>所在团队</span>
+            <strong>{person.departmentName || "未分配部门"}</strong>
+          </div>
+          <div className="profile-fact">
+            <Mail size={15} />
+            <span>协作方式</span>
+            <strong>从具体问题开始沟通</strong>
+          </div>
           <p className="profile-bio">
             {person.bio || "这位同事尚未补充个人简介。"}
           </p>
@@ -156,6 +217,25 @@ export default function OrganizationPage() {
         .sort(compareEmployees),
     [departmentId, members.data, query],
   );
+  const orderedDepartments = departments.data ?? [];
+  const allPeople = members.data ?? [];
+  const executiveDepartment =
+    orderedDepartments.find((item) => /总裁|管理层|管理部/.test(item.name)) ??
+    orderedDepartments.find(
+      (item) =>
+        !item.parentId &&
+        allPeople.some((person) => person.departmentId === item.id),
+    );
+  const executivePeople = executiveDepartment
+    ? visible.filter((person) => person.departmentId === executiveDepartment.id)
+    : [];
+  const branchDepartments = orderedDepartments
+    .filter((item) => item.id !== executiveDepartment?.id)
+    .sort(
+      (left, right) =>
+        departmentPresentation(left.name).order -
+        departmentPresentation(right.name).order,
+    );
 
   if (departments.isPending || members.isPending)
     return <main className="route-state">正在读取组织资料…</main>;
@@ -177,13 +257,7 @@ export default function OrganizationPage() {
   return (
     <div className="site-shell organization-page-shell">
       <header className="topbar organization-topbar">
-        <a className="brand" href="/">
-          <img src="/favicon.svg" alt="" />
-          <span className="brand-copy">
-            <strong>Orosaga</strong>
-            <small>山海经</small>
-          </span>
-        </a>
+        <Brand />
         <span className="organization-page-location">组织与协作</span>
         <a className="organization-back" href="/">
           <ArrowLeft size={16} /> 返回知识地图
@@ -195,11 +269,16 @@ export default function OrganizationPage() {
             <span className="eyebrow">People & collaboration · 组织与协作</span>
             <h1>找到一起把事情做好的人</h1>
             <p>
-              姓名、部门和在职状态由飞书同步；简介与协作标签由门户持续维护。
+              组织架构不是一张静态名单，而是一张协作地图。先看清谁负责什么，再从一个具体的人开始认识团队。
             </p>
           </div>
           <div className="organization-intro-note">
-            <strong>{members.data?.length ?? 0} 位同事</strong>
+            <Network size={20} />
+            <span>
+              <strong>{allPeople.length} 位同事</strong>
+              {executiveDepartment && ` · 1 个${executiveDepartment.name}`}
+              {` · ${branchDepartments.length} 个业务部门`}
+            </span>
           </div>
         </div>
         <section
@@ -222,7 +301,7 @@ export default function OrganizationPage() {
             >
               全部
             </button>
-            {departments.data?.map((item) => (
+            {branchDepartments.map((item) => (
               <button
                 key={item.id}
                 className={departmentId === item.id ? "is-active" : ""}
@@ -233,37 +312,87 @@ export default function OrganizationPage() {
               </button>
             ))}
           </div>
-          <span className="organization-result-count">
-            找到 {visible.length} 位同事
-          </span>
+          {(query || departmentId) && (
+            <span className="organization-result-count">
+              找到 {visible.length} 位同事
+            </span>
+          )}
         </section>
-        <section className="org-chart section-wrap" aria-label="组织成员">
+        <section className="org-chart section-wrap" aria-label="组织架构图">
+          {executiveDepartment &&
+            (!departmentId || departmentId === executiveDepartment.id) && (
+              <div className="executive-node">
+                <div className="executive-department-header">
+                  <div>
+                    <span>Executive office</span>
+                    <h2>{executiveDepartment.name}</h2>
+                  </div>
+                  <span className="department-count">
+                    {executivePeople.length} 人
+                  </span>
+                </div>
+                <p className="executive-description">公司方向与经营协同</p>
+                <div className="executive-people">
+                  {executivePeople.map((person, index) => (
+                    <button
+                      type="button"
+                      className="person-row executive-person"
+                      onClick={() => setSelected(person)}
+                      key={person.id}
+                    >
+                      <Avatar person={person} />
+                      <span className="person-copy">
+                        <strong>{person.displayName}</strong>
+                        <small>{person.title}</small>
+                      </span>
+                      {(person.role === "ADMIN" || index === 0) && (
+                        <em>HEAD · 负责人</em>
+                      )}
+                      <ArrowUpRight size={16} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          {!departmentId && executiveDepartment && (
+            <div className="org-trunk" aria-hidden="true" />
+          )}
           <div className="org-branches">
-            {departments.data
+            {branchDepartments
               ?.filter((item) => !departmentId || item.id === departmentId)
               .map((department) => {
+                const presentation = departmentPresentation(department.name);
                 const people = visible.filter(
                   (person) => person.departmentId === department.id,
                 );
                 return (
                   <section
-                    className="department-panel department-blue"
+                    className={`department-panel department-${presentation.color}`}
                     key={department.id}
+                    aria-labelledby={`${department.id}-title`}
                   >
                     <div className="department-header">
                       <div>
-                        <span>Department</span>
-                        <h2>{department.name}</h2>
+                        <span>{presentation.short}</span>
+                        <h2 id={`${department.id}-title`}>{department.name}</h2>
                       </div>
                       <span className="department-count">
                         {people.length} 人
                       </span>
                     </div>
+                    <p className="department-description">
+                      {presentation.description}
+                    </p>
                     <div className="department-members">
                       {people.length ? (
-                        people.map((person) => (
+                        people.map((person, personIndex) => (
                           <button
-                            className="person-row"
+                            type="button"
+                            className={
+                              person.role === "ADMIN" || personIndex === 0
+                                ? "person-row is-head"
+                                : "person-row"
+                            }
                             onClick={() => setSelected(person)}
                             key={person.id}
                           >
@@ -272,12 +401,16 @@ export default function OrganizationPage() {
                               <strong>{person.displayName}</strong>
                               <small>{person.title}</small>
                             </span>
+                            {(person.role === "ADMIN" || personIndex === 0) && (
+                              <em>HEAD · 负责人</em>
+                            )}
                             <ChevronRight size={16} />
                           </button>
                         ))
                       ) : (
                         <div className="organization-empty">
-                          没有匹配到这组同事
+                          <CircleUserRound size={19} />
+                          <span>没有匹配到这组同事</span>
                         </div>
                       )}
                     </div>
@@ -286,15 +419,29 @@ export default function OrganizationPage() {
               })}
           </div>
         </section>
+        <section
+          className="organization-principles section-wrap"
+          aria-label="协作原则"
+        >
+          <div>
+            <Sparkles size={18} />
+            <strong>先找负责人</strong>
+            <p>遇到跨部门问题，先从负责人的名片开始，知道谁可以给你方向。</p>
+          </div>
+          <div>
+            <Users size={18} />
+            <strong>再找协作者</strong>
+            <p>知道一件事由谁负责，也知道下一步应该和谁一起完成。</p>
+          </div>
+          <div>
+            <BriefcaseBusiness size={18} />
+            <strong>最后找资料</strong>
+            <p>把一次沟通沉淀成团队可复用的知识，而不是只停在聊天里。</p>
+          </div>
+        </section>
       </main>
       <footer className="organization-page-footer">
-        <a className="brand footer-brand" href="/">
-          <img src="/favicon.svg" alt="" />
-          <span className="brand-copy">
-            <strong>Orosaga</strong>
-            <small>山海经</small>
-          </span>
-        </a>
+        <Brand className="footer-brand" />
         <p>组织与协作 · 找到同行者</p>
         <span>© 2026 Yishan Technology</span>
       </footer>

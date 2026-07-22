@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  CompanyContentPayload,
   ContentPage,
-  ContentPayload,
   KnowledgeSource,
+  PortalContentPayload,
 } from "@orosaga/contracts";
 import { ArrowLeft, History, Save, Settings, Undo2 } from "lucide-react";
 import { useMe } from "../auth/AuthGate";
 import { ApiError, api, jsonBody } from "../lib/api";
+import { CompanyContentFields } from "./CompanyContentFields";
 
 type Revision = {
   id: string;
@@ -15,6 +17,12 @@ type Revision = {
   changeSummary: string;
   createdAt: string;
 };
+
+function isCompanyContent(
+  content: PortalContentPayload,
+): content is CompanyContentPayload {
+  return "schemaVersion" in content;
+}
 
 export default function AdminPage() {
   const client = useQueryClient();
@@ -32,7 +40,7 @@ export default function AdminPage() {
       api<Revision[]>(`/api/v1/admin/pages/${page.data!.id}/revisions`),
     enabled: Boolean(page.data?.id),
   });
-  const [draft, setDraft] = useState<ContentPayload | null>(null);
+  const [draft, setDraft] = useState<PortalContentPayload | null>(null);
   const [summary, setSummary] = useState("更新公司页");
   const content = draft ?? page.data?.content ?? null;
 
@@ -127,15 +135,23 @@ export default function AdminPage() {
             />
           </label>
           <label>
-            摘要
+            {isCompanyContent(content) ? "导语" : "摘要"}
             <textarea
               rows={5}
-              value={content.summary}
-              onChange={(event) =>
-                setDraft({ ...content, summary: event.target.value })
-              }
+              value={isCompanyContent(content) ? content.lead : content.summary}
+              onChange={(event) => {
+                const value = event.target.value;
+                setDraft(
+                  isCompanyContent(content)
+                    ? { ...content, lead: value }
+                    : { ...content, summary: value },
+                );
+              }}
             />
           </label>
+          {isCompanyContent(content) && (
+            <CompanyContentFields content={content} setDraft={setDraft} />
+          )}
           <label>
             变更摘要
             <input

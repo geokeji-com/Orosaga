@@ -2,11 +2,22 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  ArrowUpRight,
+  Boxes,
+  ChartNoAxesCombined,
   CheckCircle2,
   ChevronRight,
+  ClipboardCheck,
+  Database,
+  PenTool,
+  Radar,
+  Send,
   ShieldCheck,
+  Users,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useParams } from "react-router-dom";
+import { Brand } from "./components/Brand";
 import { api } from "./lib/api";
 
 type Stage = {
@@ -22,6 +33,15 @@ type Stage = {
   outputs: string[];
   next: string;
   position: number;
+  iconKey?: string;
+};
+const stageIcons: Record<string, LucideIcon> = {
+  clipboard: ClipboardCheck,
+  database: Database,
+  file: PenTool,
+  workflow: Send,
+  radar: Radar,
+  chart: ChartNoAxesCombined,
 };
 type Workflow = {
   id: string;
@@ -60,37 +80,39 @@ export default function WorkflowPage() {
   return (
     <div className="site-shell workflow-page-shell">
       <header className="topbar workflow-topbar">
-        <a className="brand" href="/">
-          <img src="/favicon.svg" alt="" />
-          <span className="brand-copy">
-            <strong>Orosaga</strong>
-            <small>山海经</small>
-          </span>
-        </a>
+        <Brand />
         <span className="workflow-page-location">运营工作流</span>
         <a className="workflow-back" href="/">
           <ArrowLeft size={16} /> 返回知识地图
         </a>
       </header>
       <main className="workflow-page">
-        <section className="workflow-page-hero">
+        <section
+          className="workflow-page-hero"
+          aria-labelledby="workflow-page-title"
+        >
           <div className="section-wrap workflow-page-hero-inner">
             <div>
               <span className="eyebrow">Operating workflow · 运营工作流</span>
-              <h1>把一次项目，完整地走一遍</h1>
-              <p>每次保存立即发布，同时生成不可变版本和审计记录。</p>
+              <h1 id="workflow-page-title">把一次项目，完整地走一遍</h1>
+              <p>
+                从客户接入到策略迭代，六段流程把输入、动作、完成标准和交接产物连成一个闭环。
+              </p>
             </div>
             <div className="workflow-page-note">
               <ShieldCheck size={19} />
               <p>
-                <strong>版本 {workflow.data.version}</strong>
+                <strong>共同约定</strong>
                 关键节点由人确认，过程由系统追溯。
               </p>
             </div>
           </div>
         </section>
-        <section className="workflow-page-content section-wrap">
-          <div className="workflow-summary">
+        <section
+          className="workflow-page-content section-wrap"
+          aria-label="运营工作流详情"
+        >
+          <div className="workflow-summary" aria-label="工作流概览">
             <div>
               <strong>{workflow.data.stages.length}</strong>
               <span>条标准流程</span>
@@ -104,32 +126,47 @@ export default function WorkflowPage() {
               </strong>
               <span>项完成标准</span>
             </div>
+            <div>
+              <strong>1</strong>
+              <span>个数据闭环</span>
+            </div>
+            <div className="workflow-principle">
+              <ShieldCheck size={18} />
+              <span>选择当前阶段，先确认做到什么才算完成</span>
+            </div>
           </div>
           <div
             className="workflow-stage-nav"
             role="tablist"
             aria-label="选择运营阶段"
           >
-            {workflow.data.stages.map((stage, index) => (
-              <button
-                role="tab"
-                aria-selected={stage.id === current.id}
-                aria-controls="workflow-panel"
-                className={
-                  stage.id === current.id
-                    ? "workflow-stage is-active"
-                    : "workflow-stage"
-                }
-                onClick={() => setActive(stage.id)}
-                key={stage.id}
-              >
-                <span className="stage-index">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <strong>{stage.shortTitle}</strong>
-                <ChevronRight size={15} />
-              </button>
-            ))}
+            {workflow.data.stages.map((stage, index) => {
+              const Icon = stageIcons[stage.iconKey ?? ""] ?? ClipboardCheck;
+              return (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={stage.id === current.id}
+                  aria-controls="workflow-panel"
+                  className={
+                    stage.id === current.id
+                      ? "workflow-stage is-active"
+                      : "workflow-stage"
+                  }
+                  onClick={() => setActive(stage.id)}
+                  key={stage.id}
+                >
+                  <span className="stage-index">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="stage-icon">
+                    <Icon size={17} strokeWidth={1.8} />
+                  </span>
+                  <strong>{stage.shortTitle}</strong>
+                  <ChevronRight size={15} className="stage-chevron" />
+                </button>
+              );
+            })}
           </div>
           <div
             className="workflow-panel"
@@ -139,10 +176,29 @@ export default function WorkflowPage() {
           >
             <div className="workflow-panel-main">
               <div className="workflow-panel-title">
-                <span>阶段 {current.position + 1}</span>
+                <span>
+                  {String(current.position + 1).padStart(2, "0")} /{" "}
+                  {String(workflow.data.stages.length).padStart(2, "0")}
+                </span>
                 <h2>{current.title}</h2>
                 <p>{current.summary}</p>
               </div>
+              <dl className="workflow-meta">
+                <div>
+                  <dt>主责角色</dt>
+                  <dd>
+                    <Users size={15} />
+                    {current.owner}
+                  </dd>
+                </div>
+                <div>
+                  <dt>工作系统</dt>
+                  <dd>
+                    <Boxes size={15} />
+                    {current.system}
+                  </dd>
+                </div>
+              </dl>
               <div className="workflow-output">
                 <span>关键产物</span>
                 <div>
@@ -151,13 +207,21 @@ export default function WorkflowPage() {
                   ))}
                 </div>
               </div>
+              <div className="workflow-handoff">
+                <span>完成后</span>
+                <strong>{current.next}</strong>
+                <ArrowUpRight size={17} />
+              </div>
             </div>
             <div className="workflow-checkpoints">
               <div className="workflow-checkpoint">
                 <span className="checkpoint-label">开始前确认</span>
                 <ul>
                   {current.inputs.map((item) => (
-                    <li key={item}>{item}</li>
+                    <li key={item}>
+                      <span />
+                      {item}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -191,13 +255,7 @@ export default function WorkflowPage() {
         </section>
       </main>
       <footer className="workflow-page-footer">
-        <a className="brand footer-brand" href="/">
-          <img src="/favicon.svg" alt="" />
-          <span className="brand-copy">
-            <strong>Orosaga</strong>
-            <small>山海经</small>
-          </span>
-        </a>
+        <Brand className="footer-brand" />
         <p>运营工作流 · 持续校准中</p>
         <span>© 2026 Yishan Technology</span>
       </footer>

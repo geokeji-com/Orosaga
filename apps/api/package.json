@@ -16,6 +16,7 @@
     "ops:configure-feishu": "node dist/cli/configure-feishu-source.js",
     "ops:upload-avatars": "node dist/cli/upload-avatars.js",
     "ops:bootstrap-admins": "node dist/cli/bootstrap-admins.js",
+    "ops:migrate-company-content": "node dist/cli/migrate-company-content.js",
     "ops:reconcile": "node dist/cli/reconcile-production.js"
   },
   "prisma": {

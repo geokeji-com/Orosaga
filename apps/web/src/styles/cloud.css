@@ -28,6 +28,22 @@
   background: white;
   cursor: pointer;
 }
+.login-page .login-primary {
+  min-width: 156px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  border-color: var(--ink);
+  background: var(--ink);
+  font-weight: 700;
+}
+.login-page .login-primary:hover {
+  background: #2d4039;
+}
+.login-page [role="alert"] {
+  color: #8b2d25;
+}
 .search-results a.is-active {
   outline: 2px solid var(--blue);
   outline-offset: -2px;
@@ -113,6 +129,33 @@
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
+}
+.admin-company-fields {
+  display: grid;
+  gap: 4px;
+  margin: 24px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.admin-company-fields legend {
+  padding: 0 8px;
+  font-weight: 700;
+}
+.admin-company-fields > fieldset {
+  display: grid;
+  gap: 4px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.admin-company-item {
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+.admin-company-item:first-of-type {
+  border-top: 0;
 }
 .admin-editor .primary-button {
   border: 0;

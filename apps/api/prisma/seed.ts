@@ -1,6 +1,8 @@
 import { databaseSchemaFromUrl } from "@orosaga/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { companyDefaultContent } from "../src/content/company-default.js";
+import { workflowDefault } from "../src/portal/workflow-default.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
@@ -11,21 +13,35 @@ const prisma = new PrismaClient({
   ),
 });
 async function seedOrganization() {
+  const departmentFixtures = [
+    { name: "总裁办", members: 2 },
+    { name: "销售部", members: 4 },
+    { name: "运营部", members: 13 },
+    { name: "技术部", members: 8 },
+    { name: "人力资源部", members: 3 },
+  ] as const;
   const departments = new Map<number, string>();
-  for (let index = 1; index <= 5; index += 1) {
+  for (const [offset, fixture] of departmentFixtures.entries()) {
+    const index = offset + 1;
     const row = await prisma.department.upsert({
       where: { externalId: `demo-department-${index}` },
       create: {
         externalId: `demo-department-${index}`,
-        name: `示例部门 ${index}`,
+        name: fixture.name,
       },
-      update: { name: `示例部门 ${index}`, active: true },
+      update: { name: fixture.name, active: true },
     });
     departments.set(index, row.id);
   }
 
+  let departmentIndex = 1;
+  let departmentMember = 0;
   for (let index = 1; index <= 30; index += 1) {
-    const departmentIndex = ((index - 1) % departments.size) + 1;
+    if (departmentMember >= departmentFixtures[departmentIndex - 1]!.members) {
+      departmentIndex += 1;
+      departmentMember = 0;
+    }
+    departmentMember += 1;
     const departmentId = departments.get(departmentIndex)!;
     const user = await prisma.user.upsert({
       where: { openId: `demo-user-${index}` },
@@ -40,13 +56,14 @@ async function seedOrganization() {
       create: {
         userId: user.id,
         departmentId,
-        portalTitle: "示例岗位",
+        portalTitle: departmentMember === 1 ? "部门负责人" : "示例岗位",
         bio: "仅用于本地开发和自动化测试的虚构资料。",
         consultTopics: ["示例主题"],
         tags: ["示例"],
       },
       update: {
         departmentId,
+        portalTitle: departmentMember === 1 ? "部门负责人" : "示例岗位",
       },
     });
   }
@@ -107,7 +124,10 @@ async function seedPages(adminId: string) {
         version: 1,
         actorId: adminId,
         changeSummary: "从本地原型建立云端基线",
-        payload: { title: item.title, summary: item.summary, blocks: [] },
+        payload:
+          item.pageType === "COMPANY"
+            ? companyDefaultContent
+            : { title: item.title, summary: item.summary, blocks: [] },
       },
     });
     await prisma.contentPage.update({
@@ -123,15 +143,15 @@ async function seedSystemLinks() {
       "项目启动与数据沉淀",
       [
         [
-          "示例数据后台",
-          "本地开发用的示例数据入口。",
+          "GEO 系统后台",
+          "数据采集与项目列表。用于建立项目、查看采集任务，并确认基础数据已经到位。",
           "https://example.com/orosaga/data",
           "database",
           true,
         ],
         [
-          "示例知识库",
-          "本地开发用的示例知识入口。",
+          "好文章好信源",
+          "沉淀可参考的高质量文章与信源，帮助内容判断有可追溯的参考坐标。",
           "https://example.com/orosaga/knowledge",
           "book",
           true,
@@ -142,18 +162,18 @@ async function seedSystemLinks() {
       "运营执行与协同",
       [
         [
-          "示例任务台",
-          "本地开发用的示例任务入口。",
+          "Noah 辅助工作台",
+          "在日常运营中辅助处理任务与素材，适合承接具体执行动作。",
           "https://example.com/orosaga/tasks",
           "workflow",
           true,
         ],
         [
-          "示例运营台",
-          "仅展示被禁用入口的交互状态。",
+          "YiShanOS 运营工作台",
+          "运营提交入口。用于按标准流程推进任务，并保留过程记录。",
           "https://example.com/orosaga/disabled-operations",
           "clipboard",
-          false,
+          true,
         ],
       ],
     ],
@@ -161,25 +181,25 @@ async function seedSystemLinks() {
       "观察、分析与交付",
       [
         [
-          "示例分析面板",
-          "本地开发用的示例分析入口。",
+          "数据分析面板",
+          "查看项目数据、趋势与关键变化，为复盘和下一轮策略提供依据。",
           "https://example.com/orosaga/analytics",
           "chart",
           true,
         ],
         [
-          "示例状态看板",
-          "本地开发用的示例状态入口。",
+          "SaaS 看板",
+          "从客户运营视角查看服务状态与项目概况，便于持续跟进。",
           "https://example.com/orosaga/status",
           "radar",
           true,
         ],
         [
-          "示例报告系统",
-          "仅展示被禁用入口的交互状态。",
+          "报告生成系统",
+          "把阶段数据整理为标准化报告，减少重复排版并保持对外口径一致。",
           "https://example.com/orosaga/disabled-reports",
           "file",
-          false,
+          true,
         ],
       ],
     ],
@@ -223,22 +243,43 @@ async function seedCamps() {
     },
     update: { enabled: false },
   });
-  const legacyCounts = [
-    11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 13, 14, 13, 15,
-  ];
-  for (const [position, legacyDescendantCount] of legacyCounts.entries()) {
-    const displayCode = `CAMP-${String(position + 1).padStart(2, "0")}`;
+  const campFixtures = [
+    ["CAMP-07", 0],
+    ["CAMP-15", 1],
+    ["CAMP-05", 2],
+    ["CAMP-11", 2],
+    ["CAMP-04", 3],
+    ["CAMP-02", 3],
+    ["CAMP-12", 5],
+    ["CAMP-08", 5],
+    ["CAMP-13", 8],
+    ["CAMP-01", 11],
+    ["CAMP-09", 13],
+    ["CAMP-06", 15],
+    ["CAMP-03", 28],
+    ["CAMP-10", 45],
+    ["CAMP-14", 56],
+    ["CAMP-16", 56],
+  ] as const;
+  for (const [
+    position,
+    [displayCode, documentCount],
+  ] of campFixtures.entries()) {
+    const legacyDescendantCount = documentCount;
     const token = `demo-camp-${String(position + 1).padStart(2, "0")}`;
     const node = await prisma.wikiNode.upsert({
       where: { externalNodeToken: token },
       create: {
         sourceId: source.id,
         externalNodeToken: token,
-        title: `示例营地 ${position + 1}`,
+        title: `示例营地 ${String(position + 1).padStart(2, "0")}`,
         nodeType: "wiki",
         url: `https://example.com/orosaga/camps/${position + 1}`,
       },
-      update: { deletedAt: null },
+      update: {
+        title: `示例营地 ${String(position + 1).padStart(2, "0")}`,
+        deletedAt: null,
+      },
     });
     await prisma.camp.upsert({
       where: { displayCode },
@@ -247,12 +288,13 @@ async function seedCamps() {
         rootNodeId: node.id,
         displayCode,
         legacyDescendantCount,
-        documentCount: 0,
+        documentCount,
         sortOrder: position,
       },
       update: {
         rootNodeId: node.id,
         legacyDescendantCount,
+        documentCount,
         sortOrder: position,
         enabled: true,
       },
@@ -271,27 +313,21 @@ async function seedWorkflow() {
     update: { title: "运营工作流" },
   });
   await prisma.workflowStage.deleteMany({ where: { workflowId: workflow.id } });
-  for (let position = 0; position < 6; position += 1) {
+  for (const [position, fixture] of workflowDefault.stages.entries()) {
     const stage = await prisma.workflowStage.create({
       data: {
         workflowId: workflow.id,
-        title: `示例阶段 ${position + 1}`,
-        description: "仅用于本地开发和自动化测试的结构化流程。",
-        iconKey: "workflow",
+        title: fixture.title,
+        description: fixture.summary,
+        iconKey: fixture.iconKey,
         sortOrder: position,
       },
     });
     for (const [itemType, values] of [
-      ["INPUT", [`阶段 ${position + 1} 的示例输入`]],
-      ["ACTION", [`阶段 ${position + 1} 的示例动作`]],
-      [
-        "DONE",
-        Array.from(
-          { length: 3 },
-          (_, index) => `阶段 ${position + 1} 的完成标准 ${index + 1}`,
-        ),
-      ],
-      ["OUTPUT", [`阶段 ${position + 1} 的示例产物`]],
+      ["INPUT", fixture.inputs],
+      ["ACTION", fixture.actions],
+      ["DONE", fixture.done],
+      ["OUTPUT", fixture.outputs],
     ] as const) {
       await prisma.workflowItem.createMany({
         data: values.map((content, sortOrder) => ({
@@ -343,29 +379,32 @@ async function seedResourceBaselines(actorId: string) {
       where: { resourceType: "workflow", resourceId: workflow.id },
     });
     if (exists) continue;
-    const stages = workflow.stages.map((stage) => ({
-      key: `stage-${stage.sortOrder}`,
-      title: stage.title,
-      shortTitle: stage.title,
-      summary: stage.description,
-      owner: "",
-      system: "",
-      iconKey: stage.iconKey,
-      inputs: stage.items
-        .filter((item) => item.itemType === "INPUT")
-        .map((item) => item.content),
-      actions: stage.items
-        .filter((item) => item.itemType === "ACTION")
-        .map((item) => item.content),
-      done: stage.items
-        .filter((item) => item.itemType === "DONE")
-        .map((item) => item.content),
-      outputs: stage.items
-        .filter((item) => item.itemType === "OUTPUT")
-        .map((item) => item.content),
-      next: "",
-      position: stage.sortOrder,
-    }));
+    const stages =
+      workflow.slug === "geo-operating"
+        ? workflowDefault.stages
+        : workflow.stages.map((stage) => ({
+            key: `stage-${stage.sortOrder}`,
+            title: stage.title,
+            shortTitle: stage.title,
+            summary: stage.description,
+            owner: "",
+            system: "",
+            iconKey: stage.iconKey,
+            inputs: stage.items
+              .filter((item) => item.itemType === "INPUT")
+              .map((item) => item.content),
+            actions: stage.items
+              .filter((item) => item.itemType === "ACTION")
+              .map((item) => item.content),
+            done: stage.items
+              .filter((item) => item.itemType === "DONE")
+              .map((item) => item.content),
+            outputs: stage.items
+              .filter((item) => item.itemType === "OUTPUT")
+              .map((item) => item.content),
+            next: "",
+            position: stage.sortOrder,
+          }));
     await prisma.resourceRevision.create({
       data: {
         resourceType: "workflow",

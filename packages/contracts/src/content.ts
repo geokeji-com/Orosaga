@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { iconKeySchema, themeKeySchema, versionedSchema } from "./common.js";
+import { companyContentPayloadSchema } from "./company.js";
 
 const textBlockSchema = z.object({
   type: z.literal("text"),
@@ -49,10 +50,16 @@ export const contentPayloadSchema = z.object({
 });
 export type ContentPayload = z.infer<typeof contentPayloadSchema>;
 
+export const portalContentPayloadSchema = z.union([
+  contentPayloadSchema,
+  companyContentPayloadSchema,
+]);
+export type PortalContentPayload = z.infer<typeof portalContentPayloadSchema>;
+
 export const contentPageSchema = versionedSchema.extend({
   slug: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
   pageType: z.enum(["HOME", "COMPANY", "ARTICLE"]),
-  content: contentPayloadSchema,
+  content: portalContentPayloadSchema,
   permissions: z.array(z.string()),
 });
 export type ContentPage = z.infer<typeof contentPageSchema>;
@@ -60,14 +67,14 @@ export type ContentPage = z.infer<typeof contentPageSchema>;
 export const saveContentPageSchema = z.object({
   expectedVersion: z.number().int().nonnegative(),
   changeSummary: z.string().min(1).max(300),
-  content: contentPayloadSchema,
+  content: portalContentPayloadSchema,
 });
 export type SaveContentPage = z.infer<typeof saveContentPageSchema>;
 
 export const contentRevisionSchema = z.object({
   id: z.string().uuid(),
   version: z.number().int().positive(),
-  content: contentPayloadSchema,
+  content: portalContentPayloadSchema,
   changeSummary: z.string(),
   actorName: z.string(),
   createdAt: z.string().datetime(),
