@@ -4,6 +4,24 @@ test.beforeEach(async ({ context }) => {
   expect((await context.request.post("/auth/dev-login")).ok()).toBeTruthy();
 });
 
+async function waitForImages(page: import("@playwright/test").Page) {
+  await page.evaluate(async () => {
+    await Promise.all(
+      [...document.images].map(
+        (image) =>
+          image.complete ||
+          new Promise<void>((resolve) => {
+            image.addEventListener("load", () => resolve(), { once: true });
+            image.addEventListener("error", () => resolve(), { once: true });
+          }),
+      ),
+    );
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
+  });
+}
+
 const pages = [
   { name: "home", route: "/", heading: /Orosaga/ },
   { name: "company", route: "/company", heading: /关于移山科技/ },
@@ -33,6 +51,7 @@ for (const viewport of [
       await expect(
         page.getByRole("heading", { name: target.heading }).first(),
       ).toBeVisible();
+      await waitForImages(page);
       await expect(page).toHaveScreenshot(
         `${target.name}-${viewport.name}.png`,
         {

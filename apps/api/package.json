@@ -11,7 +11,12 @@
     "test:coverage": "vitest run --coverage",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "ops:preflight": "node dist/cli/preflight.js",
+    "ops:configure-feishu": "node dist/cli/configure-feishu-source.js",
+    "ops:upload-avatars": "node dist/cli/upload-avatars.js",
+    "ops:bootstrap-admins": "node dist/cli/bootstrap-admins.js",
+    "ops:reconcile": "node dist/cli/reconcile-production.js"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

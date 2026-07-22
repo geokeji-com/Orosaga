@@ -1,10 +1,10 @@
 import { prisma } from "./db.js";
-import { parseServerEnv } from "@orosaga/config";
+import { parseWorkerEnv } from "@orosaga/config";
 import { FeishuRequestError } from "./feishu-client.js";
 import { runOrganizationSync } from "./organization-sync.js";
 import { runWikiSync } from "./wiki-sync.js";
 
-parseServerEnv();
+parseWorkerEnv();
 
 let working = false;
 

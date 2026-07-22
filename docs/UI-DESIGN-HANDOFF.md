@@ -533,4 +533,4 @@ styles/
 
 ## 19. 云服务重构后的路径
 
-本文件保留原型期的视觉取值；当前实现入口已迁至 `apps/web/src`，共享云端样式位于 `apps/web/src/styles`，品牌图标位于 `apps/web/public`。员工头像已移出 Web 构建边界，迁移源位于 `seed/private/team`，生产由受保护 API 返回私有 OSS 短期签名地址。
+本文件保留原型期的视觉取值；当前实现入口已迁至 `apps/web/src`，共享云端样式位于 `apps/web/src/styles`，品牌图标位于 `apps/web/public`。员工头像已移出 Web 构建边界，迁移源位于 `seed/private/team`，生产由受保护 API 从私有 OSS 内网流式读取并同源返回。

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ChevronRight, Search, X } from "lucide-react";
 import type { Department, Employee } from "@orosaga/contracts";
 import { api } from "./lib/api";
+import { compareEmployees } from "./organization-order";
 
 async function allMembers() {
   const items: Employee[] = [];
@@ -143,14 +144,16 @@ export default function OrganizationPage() {
   const [selected, setSelected] = useState<Employee | null>(null);
   const visible = useMemo(
     () =>
-      (members.data ?? []).filter((person) => {
-        const words =
-          `${person.displayName}${person.title}${person.departmentName}${person.tags.join("")}`.toLowerCase();
-        return (
-          (!departmentId || person.departmentId === departmentId) &&
-          (!query.trim() || words.includes(query.trim().toLowerCase()))
-        );
-      }),
+      (members.data ?? [])
+        .filter((person) => {
+          const words =
+            `${person.displayName}${person.title}${person.departmentName}${person.tags.join("")}`.toLowerCase();
+          return (
+            (!departmentId || person.departmentId === departmentId) &&
+            (!query.trim() || words.includes(query.trim().toLowerCase()))
+          );
+        })
+        .sort(compareEmployees),
     [departmentId, members.data, query],
   );
 

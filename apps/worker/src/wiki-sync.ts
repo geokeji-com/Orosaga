@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import { Prisma, type KnowledgeSource } from "@prisma/client";
 import { prisma, withAdvisoryLock } from "./db.js";
 import { FeishuClient } from "./feishu-client.js";
 import { countWikiDescendants } from "./wiki-metrics.js";
@@ -21,6 +21,10 @@ const pageSchema = z.object({
   }),
 });
 type WikiNode = z.infer<typeof nodeSchema>;
+type WikiSyncDependencies = {
+  database?: typeof prisma;
+  lock?: typeof withAdvisoryLock;
+};
 
 async function children(
   client: FeishuClient,
@@ -29,6 +33,7 @@ async function children(
 ) {
   const items: WikiNode[] = [];
   let pageToken: string | undefined;
+  const seenTokens = new Set<string>();
   do {
     const response = await client.get(
       `/open-apis/wiki/v2/spaces/${spaceId}/nodes`,
@@ -36,7 +41,16 @@ async function children(
       { parent_node_token: parentToken, page_size: 50, page_token: pageToken },
     );
     items.push(...response.data.items);
+    if (response.data.has_more && !response.data.page_token)
+      throw new Error(
+        `Feishu Wiki pagination for ${parentToken} omitted page_token`,
+      );
     pageToken = response.data.has_more ? response.data.page_token : undefined;
+    if (pageToken && seenTokens.has(pageToken))
+      throw new Error(
+        `Feishu Wiki pagination for ${parentToken} repeated page_token`,
+      );
+    if (pageToken) seenTokens.add(pageToken);
   } while (pageToken);
   return items;
 }
@@ -64,18 +78,22 @@ async function snapshot(
   return nodes;
 }
 
-export async function runWikiSync(runId: string, client = new FeishuClient()) {
-  return withAdvisoryLock("orosaga:wiki-sync", async () => {
-    const sources = await prisma.knowledgeSource.findMany({
+export async function runWikiSync(
+  runId: string,
+  client = new FeishuClient(),
+  dependencies: WikiSyncDependencies = {},
+) {
+  const database = dependencies.database ?? prisma;
+  const lock = dependencies.lock ?? withAdvisoryLock;
+  return lock("orosaga:wiki-sync", async () => {
+    const sources = await database.knowledgeSource.findMany({
       where: { enabled: true },
     });
-    const total = {
-      discovered: 0,
-      inserted: 0,
-      updated: 0,
-      softDeleted: 0,
-      skipped: 0,
-    };
+    const snapshots: Array<{
+      source: KnowledgeSource;
+      excluded: Set<string>;
+      nodes: WikiNode[];
+    }> = [];
     for (const source of sources) {
       const excluded = new Set(
         Array.isArray(source.excludedTokens)
@@ -90,15 +108,32 @@ export async function runWikiSync(runId: string, client = new FeishuClient()) {
         source.rootNodeToken,
         excluded,
       );
-      const old = await prisma.wikiNode.findMany({
-        where: { sourceId: source.id },
-        select: { externalNodeToken: true },
-      });
-      const known = new Set(old.map((item) => item.externalNodeToken));
-      const tokens = nodes.map((node) => node.node_token);
-      const wikiHost = process.env.FEISHU_WIKI_HOST ?? "wanhuxian.feishu.cn";
-      await prisma.$transaction(
-        async (tx) => {
+      snapshots.push({ source, excluded, nodes });
+    }
+
+    const total = {
+      discovered: 0,
+      inserted: 0,
+      updated: 0,
+      softDeleted: 0,
+      skipped: 0,
+    };
+    const wikiHost = process.env.FEISHU_WIKI_HOST ?? "wanhuxian.feishu.cn";
+    return database.$transaction(
+      async (tx) => {
+        for (const { source, excluded, nodes } of snapshots) {
+          const tokens = nodes.map((node) => node.node_token);
+          const old = await tx.wikiNode.findMany({
+            where: { sourceId: source.id },
+            select: { externalNodeToken: true },
+          });
+          const existing = tokens.length
+            ? await tx.wikiNode.findMany({
+                where: { externalNodeToken: { in: tokens } },
+                select: { externalNodeToken: true },
+              })
+            : [];
+          const known = new Set(existing.map((item) => item.externalNodeToken));
           for (const node of nodes) {
             await tx.wikiNode.upsert({
               where: { externalNodeToken: node.node_token },
@@ -114,6 +149,7 @@ export async function runWikiSync(runId: string, client = new FeishuClient()) {
                   : Prisma.JsonNull,
               },
               update: {
+                sourceId: source.id,
                 parentNodeToken: node.parent_node_token ?? null,
                 title: node.title,
                 nodeType: node.obj_type,
@@ -153,44 +189,64 @@ export async function runWikiSync(runId: string, client = new FeishuClient()) {
                 Number(row.displayCode.match(/\d+/)?.[0] ?? 0),
               ),
             ) + 1;
-          for (const root of directRoots) {
+          const activeRootIds: string[] = [];
+          for (const [position, root] of directRoots.entries()) {
             const wikiNode = await tx.wikiNode.findUniqueOrThrow({
               where: { externalNodeToken: root.node_token },
             });
-            const existing = await tx.camp.findUnique({
+            activeRootIds.push(wikiNode.id);
+            const existingCamp = await tx.camp.findUnique({
               where: { rootNodeId: wikiNode.id },
             });
             const metrics = countWikiDescendants(root.node_token, nodes);
-            if (existing)
+            if (existingCamp)
               await tx.camp.update({
-                where: { id: existing.id },
-                data: { ...metrics, enabled: true },
+                where: { id: existingCamp.id },
+                data: {
+                  sourceId: source.id,
+                  sortOrder: position,
+                  ...metrics,
+                  enabled: true,
+                },
               });
-            else
+            else {
+              const displayCode = `CAMP-${String(nextCode).padStart(2, "0")}`;
+              nextCode += 1;
               await tx.camp.create({
                 data: {
                   sourceId: source.id,
                   rootNodeId: wikiNode.id,
-                  displayCode: `CAMP-${String(nextCode++).padStart(2, "0")}`,
-                  sortOrder: nextCode,
+                  displayCode,
+                  sortOrder: position,
                   ...metrics,
                 },
               });
+            }
           }
+          await tx.camp.updateMany({
+            where: {
+              sourceId: source.id,
+              enabled: true,
+              ...(activeRootIds.length
+                ? { rootNodeId: { notIn: activeRootIds } }
+                : {}),
+            },
+            data: { enabled: false },
+          });
           await tx.knowledgeSource.update({
             where: { id: source.id },
             data: { lastSuccessAt: new Date() },
           });
-        },
-        { timeout: 60_000 },
-      );
-      total.discovered += nodes.length;
-      total.skipped += excluded.size;
-    }
-    await prisma.syncRun.update({
-      where: { id: runId },
-      data: { status: "SUCCEEDED", ...total, finishedAt: new Date() },
-    });
-    return total;
+          total.discovered += nodes.length;
+          total.skipped += excluded.size;
+        }
+        await tx.syncRun.update({
+          where: { id: runId },
+          data: { status: "SUCCEEDED", ...total, finishedAt: new Date() },
+        });
+        return total;
+      },
+      { timeout: 60_000 },
+    );
   });
 }
