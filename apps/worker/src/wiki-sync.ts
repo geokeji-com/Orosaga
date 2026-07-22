@@ -118,7 +118,7 @@ export async function runWikiSync(
       softDeleted: 0,
       skipped: 0,
     };
-    const wikiHost = process.env.FEISHU_WIKI_HOST ?? "wanhuxian.feishu.cn";
+    const wikiHost = process.env.FEISHU_WIKI_HOST ?? "example.feishu.cn";
     return database.$transaction(
       async (tx) => {
         for (const { source, excluded, nodes } of snapshots) {

@@ -1,14 +1,16 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+const apiOrigin = `http://127.0.0.1:${process.env.E2E_API_PORT ?? "3000"}`;
+
 export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/api": "http://127.0.0.1:3000",
-      "/auth": "http://127.0.0.1:3000",
-      "/healthz": "http://127.0.0.1:3000",
-      "/readyz": "http://127.0.0.1:3000",
+      "/api": apiOrigin,
+      "/auth": apiOrigin,
+      "/healthz": apiOrigin,
+      "/readyz": apiOrigin,
     },
   },
 });

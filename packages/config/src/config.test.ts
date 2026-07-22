@@ -87,7 +87,7 @@ describe("server environment", () => {
     expect(
       serverEnvSchema.safeParse({
         ...production,
-        PRIVATE_ASSET_ROOT: "/app/seed/private",
+        PRIVATE_ASSET_ROOT: "/secure/orosaga-migration-assets",
       }).success,
     ).toBe(false);
   });

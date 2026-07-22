@@ -1,10 +1,6 @@
-import { createHash } from "node:crypto";
-import { readFile, stat } from "node:fs/promises";
-import { basename, resolve } from "node:path";
 import { databaseSchemaFromUrl } from "@orosaga/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
-import { camps } from "../../../seed/legacy/camps.generated.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
@@ -14,86 +10,43 @@ const prisma = new PrismaClient({
     { schema: databaseSchemaFromUrl(databaseUrl) },
   ),
 });
-const seedRoot = resolve(process.cwd(), "../../seed");
-
-const capture = (body: string, key: string) =>
-  body.match(new RegExp(`${key}:\\s*'([^']*)'`))?.[1] ?? "";
-const list = (body: string, key: string) => {
-  const raw = body.match(new RegExp(`${key}:\\s*\\[([^\\]]*)\\]`))?.[1] ?? "";
-  return [...raw.matchAll(/'([^']+)'/g)].map((match) => match[1]!);
-};
-
 async function seedOrganization() {
-  const source = await readFile(
-    resolve(seedRoot, "legacy/OrganizationPage.tsx"),
-    "utf8",
-  );
-  const blocks = [...source.matchAll(/member\(\{([\s\S]*?)\}\)/g)].map(
-    (match) => match[1]!,
-  );
-  const departments = new Map<string, string>();
-  for (const body of blocks) {
-    const department = capture(body, "department");
-    if (!departments.has(department)) {
-      const row = await prisma.department.upsert({
-        where: { externalId: `legacy:${department}` },
-        create: { externalId: `legacy:${department}`, name: department },
-        update: { name: department, active: true },
-      });
-      departments.set(department, row.id);
-    }
+  const departments = new Map<number, string>();
+  for (let index = 1; index <= 5; index += 1) {
+    const row = await prisma.department.upsert({
+      where: { externalId: `demo-department-${index}` },
+      create: {
+        externalId: `demo-department-${index}`,
+        name: `示例部门 ${index}`,
+      },
+      update: { name: `示例部门 ${index}`, active: true },
+    });
+    departments.set(index, row.id);
   }
 
-  for (const body of blocks) {
-    const legacyId = capture(body, "id");
-    const name = capture(body, "name");
-    const department = capture(body, "department");
-    const photo = capture(body, "photo");
+  for (let index = 1; index <= 30; index += 1) {
+    const departmentIndex = ((index - 1) % departments.size) + 1;
+    const departmentId = departments.get(departmentIndex)!;
     const user = await prisma.user.upsert({
-      where: { openId: `legacy:${legacyId}` },
-      create: { openId: `legacy:${legacyId}`, displayName: name },
-      update: { displayName: name },
+      where: { openId: `demo-user-${index}` },
+      create: {
+        openId: `demo-user-${index}`,
+        displayName: `示例成员 ${String(index).padStart(2, "0")}`,
+      },
+      update: { status: "ACTIVE" },
     });
-    let avatarAssetId: string | null = null;
-    if (photo) {
-      const filename = basename(photo);
-      const path = resolve(seedRoot, "private/team", filename);
-      const bytes = await readFile(path);
-      const info = await stat(path);
-      const asset = await prisma.asset.upsert({
-        where: { objectKey: `team/${filename}` },
-        create: {
-          objectKey: `team/${filename}`,
-          mimeType: "image/png",
-          sha256: createHash("sha256").update(bytes).digest("hex"),
-          size: info.size,
-          ownerId: user.id,
-        },
-        update: {
-          sha256: createHash("sha256").update(bytes).digest("hex"),
-          size: info.size,
-        },
-      });
-      avatarAssetId = asset.id;
-    }
     await prisma.employeeProfile.upsert({
       where: { userId: user.id },
       create: {
         userId: user.id,
-        departmentId: departments.get(department) ?? null,
-        portalTitle: capture(body, "role"),
-        bio: capture(body, "bio"),
-        consultTopics: [capture(body, "learn")],
-        tags: list(body, "tags"),
-        avatarAssetId,
+        departmentId,
+        portalTitle: "示例岗位",
+        bio: "仅用于本地开发和自动化测试的虚构资料。",
+        consultTopics: ["示例主题"],
+        tags: ["示例"],
       },
       update: {
-        departmentId: departments.get(department) ?? null,
-        portalTitle: capture(body, "role"),
-        bio: capture(body, "bio"),
-        consultTopics: [capture(body, "learn")],
-        tags: list(body, "tags"),
-        avatarAssetId,
+        departmentId,
       },
     });
   }
@@ -170,16 +123,16 @@ async function seedSystemLinks() {
       "项目启动与数据沉淀",
       [
         [
-          "GEO 系统后台",
-          "数据采集与项目列表。",
-          "https://wanhuchangan.com/geo-enterprise/list",
+          "示例数据后台",
+          "本地开发用的示例数据入口。",
+          "https://example.com/orosaga/data",
           "database",
           true,
         ],
         [
-          "好文章好信源",
-          "沉淀可参考的高质量文章与信源。",
-          "https://good.wanhuchangan.cn/",
+          "示例知识库",
+          "本地开发用的示例知识入口。",
+          "https://example.com/orosaga/knowledge",
           "book",
           true,
         ],
@@ -189,16 +142,16 @@ async function seedSystemLinks() {
       "运营执行与协同",
       [
         [
-          "Noah 辅助工作台",
-          "日常运营任务与素材辅助。",
-          "https://noah.wanhuchangan.com/desktop",
+          "示例任务台",
+          "本地开发用的示例任务入口。",
+          "https://example.com/orosaga/tasks",
           "workflow",
           true,
         ],
         [
-          "YiShanOS 运营工作台",
-          "旧本机地址待替换为云端 HTTPS 域名。",
-          "http://localhost:3302/prototype/submission",
+          "示例运营台",
+          "仅展示被禁用入口的交互状态。",
+          "https://example.com/orosaga/disabled-operations",
           "clipboard",
           false,
         ],
@@ -208,23 +161,23 @@ async function seedSystemLinks() {
       "观察、分析与交付",
       [
         [
-          "数据分析面板",
-          "查看项目趋势与关键变化。",
-          "https://dash.wanhuchangan.cn/",
+          "示例分析面板",
+          "本地开发用的示例分析入口。",
+          "https://example.com/orosaga/analytics",
           "chart",
           true,
         ],
         [
-          "SaaS 看板",
-          "从客户运营视角查看服务状态。",
-          "https://status.geokeji.com/operator/clients",
+          "示例状态看板",
+          "本地开发用的示例状态入口。",
+          "https://example.com/orosaga/status",
           "radar",
           true,
         ],
         [
-          "报告生成系统",
-          "裸 IP 地址待补 HTTPS 域名。",
-          "http://47.95.247.158:8765/",
+          "示例报告系统",
+          "仅展示被禁用入口的交互状态。",
+          "https://example.com/orosaga/disabled-reports",
           "file",
           false,
         ],
@@ -258,43 +211,48 @@ async function seedCamps() {
   const source = await prisma.knowledgeSource.upsert({
     where: {
       spaceId_rootNodeToken: {
-        spaceId: "legacy",
-        rootNodeToken: "legacy-root",
+        spaceId: "demo",
+        rootNodeToken: "demo-root",
       },
     },
     create: {
-      name: "旧版个人分享营地",
-      spaceId: "legacy",
-      rootNodeToken: "legacy-root",
+      name: "本地示例营地",
+      spaceId: "demo",
+      rootNodeToken: "demo-root",
       enabled: false,
     },
     update: { enabled: false },
   });
-  for (const [position, item] of camps.entries()) {
+  const legacyCounts = [
+    11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 13, 14, 13, 15,
+  ];
+  for (const [position, legacyDescendantCount] of legacyCounts.entries()) {
+    const displayCode = `CAMP-${String(position + 1).padStart(2, "0")}`;
+    const token = `demo-camp-${String(position + 1).padStart(2, "0")}`;
     const node = await prisma.wikiNode.upsert({
-      where: { externalNodeToken: item.nodeToken },
+      where: { externalNodeToken: token },
       create: {
         sourceId: source.id,
-        externalNodeToken: item.nodeToken,
-        title: item.title,
+        externalNodeToken: token,
+        title: `示例营地 ${position + 1}`,
         nodeType: "wiki",
-        url: item.href,
+        url: `https://example.com/orosaga/camps/${position + 1}`,
       },
-      update: { title: item.title, url: item.href, deletedAt: null },
+      update: { deletedAt: null },
     });
     await prisma.camp.upsert({
-      where: { displayCode: item.id },
+      where: { displayCode },
       create: {
         sourceId: source.id,
         rootNodeId: node.id,
-        displayCode: item.id,
-        legacyDescendantCount: item.documentCount,
+        displayCode,
+        legacyDescendantCount,
         documentCount: 0,
         sortOrder: position,
       },
       update: {
         rootNodeId: node.id,
-        legacyDescendantCount: item.documentCount,
+        legacyDescendantCount,
         sortOrder: position,
         enabled: true,
       },
@@ -307,36 +265,33 @@ async function seedCamps() {
 }
 
 async function seedWorkflow() {
-  const source = await readFile(
-    resolve(seedRoot, "legacy/WorkflowPage.tsx"),
-    "utf8",
-  );
-  const arrayBody =
-    source.match(/const workflowStages[\s\S]*?= \[([\s\S]*?)\n\]\n/)?.[1] ?? "";
-  const stages = [...arrayBody.matchAll(/\n {2}\{([\s\S]*?)\n {2}\},/g)].map(
-    (match) => match[1]!,
-  );
   const workflow = await prisma.workflowDefinition.upsert({
     where: { slug: "geo-operating" },
     create: { slug: "geo-operating", title: "运营工作流" },
     update: { title: "运营工作流" },
   });
   await prisma.workflowStage.deleteMany({ where: { workflowId: workflow.id } });
-  for (const [position, body] of stages.entries()) {
+  for (let position = 0; position < 6; position += 1) {
     const stage = await prisma.workflowStage.create({
       data: {
         workflowId: workflow.id,
-        title: capture(body, "title"),
-        description: capture(body, "summary"),
+        title: `示例阶段 ${position + 1}`,
+        description: "仅用于本地开发和自动化测试的结构化流程。",
         iconKey: "workflow",
         sortOrder: position,
       },
     });
     for (const [itemType, values] of [
-      ["INPUT", list(body, "inputs")],
-      ["ACTION", list(body, "actions")],
-      ["DONE", list(body, "done")],
-      ["OUTPUT", list(body, "outputs")],
+      ["INPUT", [`阶段 ${position + 1} 的示例输入`]],
+      ["ACTION", [`阶段 ${position + 1} 的示例动作`]],
+      [
+        "DONE",
+        Array.from(
+          { length: 3 },
+          (_, index) => `阶段 ${position + 1} 的完成标准 ${index + 1}`,
+        ),
+      ],
+      ["OUTPUT", [`阶段 ${position + 1} 的示例产物`]],
     ] as const) {
       await prisma.workflowItem.createMany({
         data: values.map((content, sortOrder) => ({
@@ -348,25 +303,6 @@ async function seedWorkflow() {
       });
     }
   }
-}
-
-async function seedInventoryAsset() {
-  const filename = "智能纪要.png";
-  const path = resolve(seedRoot, "private/team", filename);
-  const bytes = await readFile(path);
-  await prisma.asset.upsert({
-    where: { objectKey: `team/${filename}` },
-    create: {
-      objectKey: `team/${filename}`,
-      mimeType: "image/png",
-      sha256: createHash("sha256").update(bytes).digest("hex"),
-      size: bytes.length,
-    },
-    update: {
-      sha256: createHash("sha256").update(bytes).digest("hex"),
-      size: bytes.length,
-    },
-  });
 }
 
 async function seedResourceBaselines(actorId: string) {
@@ -444,6 +380,11 @@ async function seedResourceBaselines(actorId: string) {
 }
 
 async function main() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "The one-time production migration seed has been retired; this seed is for development and tests only.",
+    );
+  }
   const admin = await prisma.user.upsert({
     where: { openId: "seed:content-migration" },
     create: {
@@ -460,7 +401,6 @@ async function main() {
   await seedSystemLinks();
   await seedCamps();
   await seedWorkflow();
-  await seedInventoryAsset();
   await seedResourceBaselines(admin.id);
   const [employees, assets, campCount, links, stages] = await Promise.all([
     prisma.employeeProfile.count(),

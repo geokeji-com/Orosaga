@@ -41,39 +41,12 @@ services:
     networks:
       - orosaga
 
-  seed:
-    image: orosaga-api:${OROSAGA_RELEASE_SHA:-local}
-    profiles: ["operations"]
-    env_file:
-      - ${OROSAGA_DATABASE_ENV_FILE:-/opt/orosaga/shared/database.env}
-    command:
-      - sh
-      - -c
-      - cd apps/api && node ../../node_modules/tsx/dist/cli.mjs prisma/seed.ts
-    volumes:
-      - ./seed/legacy:/app/seed/legacy:ro
-      - ./seed/private:/app/seed/private:ro
-    restart: "no"
-    read_only: true
-    tmpfs:
-      - /tmp
-    init: true
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    networks:
-      - orosaga
-
   ops:
     image: orosaga-api:${OROSAGA_RELEASE_SHA:-local}
     profiles: ["operations"]
     env_file:
       - ${OROSAGA_OPERATIONS_ENV_FILE:-/opt/orosaga/shared/operations.env}
     command: ["node", "--version"]
-    volumes:
-      - ./seed/legacy:/app/seed/legacy:ro
-      - ./seed/private:/app/seed/private:ro
     restart: "no"
     read_only: true
     tmpfs:

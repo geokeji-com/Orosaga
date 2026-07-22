@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const apiPort = process.env.E2E_API_PORT ?? "3000";
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
@@ -17,8 +19,8 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
-      command: "npm run start -w @orosaga/api",
-      url: "http://127.0.0.1:3000/healthz",
+      command: `PORT=${apiPort} npm run start -w @orosaga/api`,
+      url: `http://127.0.0.1:${apiPort}/healthz`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
     },
