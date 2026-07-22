@@ -37,7 +37,7 @@ $OROSAGA_COMPOSE build web
 
 若中国区服务器无法连接 Docker Hub，可先运行 `deploy/build-node-base.sh`：脚本从华为云 Node 镜像下载官方 Linux x64 归档并校验固定 SHA-256，同时下载 npm `11.6.2` 官方归档并校验固定 SHA-1，随后构建 `orosaga-node:24.17.0` 并验证 Node/npm 版本。设置 `OROSAGA_NODE_IMAGE=orosaga-node:24.17.0` 后再构建应用；CI 仍使用默认官方镜像。任何代理 Nginx 基础镜像只允许回环灰度，必须记录 digest，正式域名切换前恢复并验证官方固定版本。
 
-数据库写入前必须记录 RDS 手工快照 ID、PITR 可用时间点、恢复负责人和验证时间；缺少任一项立即停止。只读预检会拒绝未显式授权的明文连接、非 `disable` 模式、非阿里云 RDS 主机名以及任何解析到公网的地址。migration 命令自身也会先执行同一预检；迁移后再次强制检查 schema：
+数据库写入前必须创建手工物理备份，等待 `BackupStatus=Success`，并记录快照 ID、恢复负责人、验证时间和当前 PITR 状态；缺少成功快照立即停止。本次共享 RDS 的 PITR 保持关闭，不修改实例级策略。只读预检会拒绝未显式授权的明文连接、非 `disable` 模式、非阿里云 RDS 主机名以及任何解析到公网的地址。migration 命令自身也会先执行同一预检；迁移后再次强制检查 schema：
 
 ```bash
 $OROSAGA_COMPOSE --profile operations run --rm migrate \
@@ -94,11 +94,11 @@ $OROSAGA_COMPOSE ps
 $OROSAGA_COMPOSE logs --since 10m api worker web
 ```
 
-匿名业务 API 应返回 `401`。完成数据对账后再安装 Nginx 精确域名配置和 TLS 证书。
+匿名业务 API 应返回 `401`。生产对账的活动员工数来自最近一次60分钟内成功组织同步的 `discovered`，30只表示旧员工扩展资料迁移基线。完成数据对账后再安装 Nginx 精确域名配置和 TLS 证书。
 
 ## 证书与域名
 
-先安装 `deploy/nginx/orosaga-http.conf` 并通过 `nginx -t`，再使用现有 acme.sh 的 `/var/www/acme` webroot 签发证书。证书只能通过 `--install-cert` 安装：
+`publish.wanhuchangan.com` 的 vhost、证书和私钥是禁止修改的保护对象。每次 Nginx 变更前后必须运行 `deploy/verify-publish-protection.sh`，任意 hash 不一致立即停止。先把 `deploy/nginx/orosaga-http.conf` 安装为独立的 `/etc/nginx/conf.d/orosaga.wanhuchangan.com.conf` 并通过 `nginx -t`；该配置除 ACME challenge 外只返回 Orosaga 503。再使用现有 acme.sh 的 `/var/www/acme` webroot只签发 Orosaga 域名，证书只能通过 `--install-cert` 安装到 Orosaga 独立目录：
 
 ```bash
 acme.sh --issue --server letsencrypt --keylength ec-256 \
@@ -109,7 +109,7 @@ acme.sh --install-cert --ecc -d orosaga.wanhuchangan.com \
   --reloadcmd 'nginx -t && systemctl reload nginx'
 ```
 
-随后安装 `deploy/nginx/orosaga.conf` 和维护页。不得修改其他域名的 vhost。
+随后用 `deploy/nginx/orosaga.conf` 替换同一个 Orosaga 配置文件并安装维护页。不得编辑、复制、续期或覆盖 publish 的配置和证书；reload后必须再次运行保护脚本，并分别验证两个域名的证书 SAN 和页面内容。
 
 ## 回退
 

@@ -1,16 +1,5 @@
 import { runOperation } from "./prisma.js";
-
-const expected = {
-  activeEmployees: 30,
-  assets: 31,
-  camps: 16,
-  legacyDescendants: 253,
-  systemLinks: 7,
-  workflowStages: 6,
-  doneItems: 18,
-  admins: 2,
-  unsafeLinksDisabled: 2,
-};
+import { assessProductionState } from "./reconcile-production-operation.js";
 
 void runOperation(async (prisma) => {
   const [
@@ -25,9 +14,9 @@ void runOperation(async (prisma) => {
     doneItems,
     admins,
     unsafeLinksDisabled,
-    successfulOrganizationRuns,
-    successfulWikiRuns,
     freshRealSources,
+    latestOrganizationSync,
+    latestWikiSync,
   ] = await Promise.all([
     prisma.employeeProfile.count({ where: { user: { status: "ACTIVE" } } }),
     prisma.user.count({
@@ -55,16 +44,22 @@ void runOperation(async (prisma) => {
         enabled: false,
       },
     }),
-    prisma.syncRun.count({
-      where: { kind: "ORGANIZATION", status: "SUCCEEDED" },
-    }),
-    prisma.syncRun.count({ where: { kind: "WIKI", status: "SUCCEEDED" } }),
     prisma.knowledgeSource.count({
       where: {
         enabled: true,
         spaceId: { not: "legacy" },
         lastSuccessAt: { not: null },
       },
+    }),
+    prisma.syncRun.findFirst({
+      where: { kind: "ORGANIZATION", status: "SUCCEEDED" },
+      orderBy: { finishedAt: "desc" },
+      select: { discovered: true, finishedAt: true },
+    }),
+    prisma.syncRun.findFirst({
+      where: { kind: "WIKI", status: "SUCCEEDED" },
+      orderBy: { finishedAt: "desc" },
+      select: { discovered: true, finishedAt: true },
     }),
   ]);
   const actual = {
@@ -79,34 +74,20 @@ void runOperation(async (prisma) => {
     doneItems,
     admins,
     unsafeLinksDisabled,
-    successfulOrganizationRuns,
-    successfulWikiRuns,
     freshRealSources,
   };
-  const checks = [
-    actual.activeEmployees === expected.activeEmployees,
-    actual.activeLegacyUsers === 0,
-    actual.assets === expected.assets,
-    actual.camps === expected.camps,
-    actual.legacyDescendants === expected.legacyDescendants,
-    actual.realSourceCamps === expected.camps,
-    actual.systemLinks === expected.systemLinks,
-    actual.workflowStages === expected.workflowStages,
-    actual.doneItems === expected.doneItems,
-    actual.admins >= expected.admins,
-    actual.unsafeLinksDisabled === expected.unsafeLinksDisabled,
-    actual.successfulOrganizationRuns >= 1,
-    actual.successfulWikiRuns >= 1,
-    actual.freshRealSources >= 1,
-  ];
+  const report = assessProductionState(
+    actual,
+    latestOrganizationSync,
+    latestWikiSync,
+  );
   console.log(
     JSON.stringify({
       operation: "reconcile-production",
-      ok: checks.every(Boolean),
-      counts: actual,
+      ...report,
     }),
   );
-  if (!checks.every(Boolean)) throw new Error("Production counts do not match");
+  if (!report.ok) throw new Error("Production counts do not match");
 }).catch((error: unknown) => {
   console.error(
     JSON.stringify({
