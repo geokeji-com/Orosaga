@@ -21,6 +21,58 @@ function rejectPlaceholder(
     });
 }
 
+type DatabaseTransportEnv = {
+  DATABASE_URL: string;
+  DATABASE_ALLOW_PLAINTEXT_INTERNAL: boolean;
+};
+
+function validateProductionDatabase(
+  env: DatabaseTransportEnv,
+  context: z.RefinementCtx,
+) {
+  let url: URL;
+  try {
+    url = new URL(env.DATABASE_URL);
+  } catch {
+    context.addIssue({
+      code: "custom",
+      path: ["DATABASE_URL"],
+      message: "DATABASE_URL must be a valid PostgreSQL URL",
+    });
+    return;
+  }
+  if (!["postgres:", "postgresql:"].includes(url.protocol))
+    context.addIssue({
+      code: "custom",
+      path: ["DATABASE_URL"],
+      message: "DATABASE_URL must use the PostgreSQL protocol",
+    });
+  if (!env.DATABASE_ALLOW_PLAINTEXT_INTERNAL)
+    context.addIssue({
+      code: "custom",
+      path: ["DATABASE_ALLOW_PLAINTEXT_INTERNAL"],
+      message: "production plaintext database access requires explicit opt-in",
+    });
+  if (url.searchParams.get("sslmode") !== "disable")
+    context.addIssue({
+      code: "custom",
+      path: ["DATABASE_URL"],
+      message: "production DATABASE_URL must set sslmode=disable explicitly",
+    });
+  if (url.searchParams.get("schema") !== "orosaga")
+    context.addIssue({
+      code: "custom",
+      path: ["DATABASE_URL"],
+      message: "production DATABASE_URL must select the orosaga schema",
+    });
+  if (!url.hostname.endsWith(".pg.rds.aliyuncs.com"))
+    context.addIssue({
+      code: "custom",
+      path: ["DATABASE_URL"],
+      message: "production DATABASE_URL must use an Alibaba Cloud RDS hostname",
+    });
+}
+
 export const serverEnvSchema = z
   .object({
     NODE_ENV: z
@@ -29,6 +81,7 @@ export const serverEnvSchema = z
     PORT: z.coerce.number().int().positive().default(3000),
     HOST: z.string().min(1).default("0.0.0.0"),
     DATABASE_URL: z.string().min(1),
+    DATABASE_ALLOW_PLAINTEXT_INTERNAL: booleanFromString,
     PUBLIC_ORIGIN: z.string().url(),
     SESSION_SECRET: z.string().min(32),
     FEISHU_APP_ID: z.string().min(1),
@@ -50,6 +103,7 @@ export const serverEnvSchema = z
   })
   .superRefine((env, context) => {
     if (env.NODE_ENV !== "production") return;
+    validateProductionDatabase(env, context);
     for (const field of [
       "DATABASE_URL",
       "SESSION_SECRET",
@@ -104,6 +158,7 @@ export const workerEnvSchema = z
       .enum(["development", "test", "production"])
       .default("development"),
     DATABASE_URL: z.string().min(1),
+    DATABASE_ALLOW_PLAINTEXT_INTERNAL: booleanFromString,
     FEISHU_APP_ID: z.string().min(1),
     FEISHU_APP_SECRET: z.string().min(1),
     FEISHU_API_BASE_URL: z.string().url().default("https://open.feishu.cn"),
@@ -112,6 +167,7 @@ export const workerEnvSchema = z
   })
   .superRefine((env, context) => {
     if (env.NODE_ENV !== "production") return;
+    validateProductionDatabase(env, context);
     for (const field of [
       "DATABASE_URL",
       "FEISHU_APP_ID",

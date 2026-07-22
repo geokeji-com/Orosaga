@@ -28,7 +28,7 @@ services:
     command:
       - sh
       - -c
-      - cd apps/api && node ../../node_modules/prisma/build/index.js migrate deploy
+      - node apps/api/dist/cli/preflight.js && cd apps/api && node ../../node_modules/prisma/build/index.js migrate deploy
     restart: "no"
     read_only: true
     tmpfs:

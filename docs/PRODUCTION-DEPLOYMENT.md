@@ -7,9 +7,10 @@
 - 生产主环境文件：`/opt/orosaga/shared/.env.production`，root 所有，权限 `0600`，只用于生成职责分离的 `api.env`、`worker.env`、`database.env` 和 `operations.env`；运行容器不得共享全量环境。
 - Web 仅监听宿主机 `127.0.0.1:18088`；API、Worker 不发布宿主机端口。
 - 数据库仅使用 `yishan_verse` 的 `orosaga` schema；生产不使用 Redis。
+- 数据库仅通过同 VPC RDS 内网地址访问，显式使用 `sslmode=disable`；RDS 不开放公网地址，白名单只允许 Orosaga ECS 私网来源。
 - 禁止执行 `docker system prune`、`docker image prune -a`、`docker compose down -v`。
 
-环境职责固定为：`database.env` 只含 `DATABASE_URL`；`worker.env` 只含数据库、飞书应用身份、API/Wiki host 和同步周期；`api.env` 包含 API 会话、飞书登录和 OSS 只读访问；`operations.env` 只供一次性任务使用，可包含上传写权限、Wiki 根节点和管理员初始化参数。四个文件均为 root:root/0600。
+环境职责固定为：`database.env` 只含 `DATABASE_URL` 和 `DATABASE_ALLOW_PLAINTEXT_INTERNAL=true`；`worker.env` 只含数据库连接、明文内网授权、飞书应用身份、API/Wiki host 和同步周期；`api.env` 包含数据库连接、明文内网授权、API 会话、飞书登录和 OSS 只读访问；`operations.env` 只供一次性任务使用，可包含数据库连接、明文内网授权、上传写权限、Wiki 根节点和管理员初始化参数。四个文件均为 root:root/0600。
 
 ## 首次发布顺序
 
@@ -36,7 +37,7 @@ $OROSAGA_COMPOSE build web
 
 若中国区服务器无法连接 Docker Hub，可先运行 `deploy/build-node-base.sh`：脚本从华为云 Node 镜像下载官方 Linux x64 归档并校验固定 SHA-256，同时下载 npm `11.6.2` 官方归档并校验固定 SHA-1，随后构建 `orosaga-node:24.17.0` 并验证 Node/npm 版本。设置 `OROSAGA_NODE_IMAGE=orosaga-node:24.17.0` 后再构建应用；CI 仍使用默认官方镜像。任何代理 Nginx 基础镜像只允许回环灰度，必须记录 digest，正式域名切换前恢复并验证官方固定版本。
 
-数据库写入前必须记录 RDS 手工快照 ID、PITR 可用时间点、恢复负责人和验证时间；缺少任一项立即停止。只读预检和 migration 必须在应用启动前完成，迁移后再次强制检查 schema：
+数据库写入前必须记录 RDS 手工快照 ID、PITR 可用时间点、恢复负责人和验证时间；缺少任一项立即停止。只读预检会拒绝未显式授权的明文连接、非 `disable` 模式、非阿里云 RDS 主机名以及任何解析到公网的地址。migration 命令自身也会先执行同一预检；迁移后再次强制检查 schema：
 
 ```bash
 $OROSAGA_COMPOSE --profile operations run --rm migrate \
@@ -127,8 +128,8 @@ acme.sh --install-cert --ecc -d orosaga.wanhuchangan.com \
 
 ## 发布验收
 
-- `/healthz` 只证明进程存活；数据库 TLS、schema 和权限以 `ops:preflight` 为准。
+- `/healthz` 只证明进程存活；数据库内网解析、明文授权、schema 和权限以 `ops:preflight` 为准。
 - Worker 以组织/Wiki最近成功时间、同步计数和401/403告警作为就绪证据。
 - 静态 bundle 扫描不得检出员工姓名、Wiki token、内部地址和头像路径。
 - 浏览器不得看到 OSS URL；匿名 OSS HEAD 必须被拒绝。
-- GitHub 仓库确认 Private 后才允许推送迁移分支。
+- GitHub 仓库公开期间，推送前必须通过敏感信息扫描，且不得新增凭据、员工迁移资料、头像或飞书节点 token。

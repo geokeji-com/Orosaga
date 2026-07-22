@@ -1,4 +1,5 @@
 import { Client } from "pg";
+import { requirePrivateDatabaseAddresses } from "./database-network.js";
 
 type Check = { name: string; ok: boolean; detail: string };
 
@@ -6,7 +7,12 @@ async function main() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error("DATABASE_URL is required");
   const requireSchema = process.argv.includes("--require-schema");
-  const url = new URL(databaseUrl);
+  let url: URL;
+  try {
+    url = new URL(databaseUrl);
+  } catch {
+    throw new Error("DATABASE_URL must be a valid URL");
+  }
   const checks: Check[] = [];
   checks.push({
     name: "database-schema-parameter",
@@ -15,9 +21,43 @@ async function main() {
   });
   checks.push({
     name: "database-ssl-mode",
-    ok: url.searchParams.get("sslmode") === "require",
+    ok: url.searchParams.get("sslmode") === "disable",
     detail: url.searchParams.get("sslmode") ?? "missing",
   });
+  checks.push({
+    name: "database-plaintext-opt-in",
+    ok: process.env.DATABASE_ALLOW_PLAINTEXT_INTERNAL === "true",
+    detail:
+      process.env.DATABASE_ALLOW_PLAINTEXT_INTERNAL === "true"
+        ? "enabled"
+        : "disabled",
+  });
+  checks.push({
+    name: "database-rds-hostname",
+    ok: url.hostname.endsWith(".pg.rds.aliyuncs.com"),
+    detail: url.hostname.endsWith(".pg.rds.aliyuncs.com")
+      ? "Alibaba Cloud RDS"
+      : "rejected",
+  });
+  try {
+    const addresses = await requirePrivateDatabaseAddresses(url.hostname);
+    checks.push({
+      name: "database-private-addresses",
+      ok: true,
+      detail: `${addresses.length} private address(es)`,
+    });
+  } catch (error) {
+    checks.push({
+      name: "database-private-addresses",
+      ok: false,
+      detail: error instanceof Error ? error.message : "resolution failed",
+    });
+  }
+  if (checks.some((check) => !check.ok)) {
+    for (const check of checks) console.log(JSON.stringify(check));
+    process.exitCode = 1;
+    return;
+  }
 
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
@@ -55,7 +95,7 @@ async function main() {
         ok: row.database_name === "yishan_verse",
         detail: row.database_name,
       },
-      { name: "tls-active", ok: row.ssl, detail: String(row.ssl) },
+      { name: "tls-disabled", ok: !row.ssl, detail: String(!row.ssl) },
       {
         name: "schema-exists",
         ok: !requireSchema || row.schema_exists,
