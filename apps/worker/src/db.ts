@@ -1,3 +1,4 @@
+import { databaseSchemaFromUrl } from "@orosaga/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { Client } from "pg";
@@ -5,7 +6,10 @@ import { Client } from "pg";
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
 export const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: databaseUrl }),
+  adapter: new PrismaPg(
+    { connectionString: databaseUrl },
+    { schema: databaseSchemaFromUrl(databaseUrl) },
+  ),
 });
 
 export type AdvisoryLockClient = Pick<Client, "connect" | "query" | "end">;
