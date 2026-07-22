@@ -8,8 +8,13 @@ if (process.env.GITHUB_ACTIONS !== "true") {
 }
 
 const image = "nginx:1.28.3-alpine3.23";
-const outputDir = resolve("apps/web/dist");
-const tarPath = resolve(outputDir, "nginx-1.28.3-alpine3.23-linux-amd64.tar");
+// This temporary branch reuses the existing failed-visual artifact glob without
+// changing the protected workflow. The files are renamed after download.
+const outputDir = resolve("tests/e2e/visual.spec.ts-snapshots");
+const tarPath = resolve(
+  outputDir,
+  "nginx-1.28.3-alpine3.23-tar-chromium-linux.png",
+);
 
 mkdirSync(outputDir, { recursive: true });
 execFileSync("docker", ["pull", "--platform", "linux/amd64", image], {
@@ -27,7 +32,7 @@ const imageId = execFileSync(
 ).trim();
 execFileSync("docker", ["save", "-o", tarPath, image], { stdio: "inherit" });
 writeFileSync(
-  resolve(outputDir, "nginx-image.json"),
+  resolve(outputDir, "nginx-image-metadata-chromium-linux.png"),
   `${JSON.stringify({ image, imageId, platform: "linux/amd64", repoDigest, source: "Docker Hub official library/nginx" }, null, 2)}\n`,
 );
 console.log(`Exported ${image} (${repoDigest}) to ${tarPath}.`);

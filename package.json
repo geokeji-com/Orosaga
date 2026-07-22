@@ -23,14 +23,14 @@
     "typecheck:apps": "npm run typecheck -w @orosaga/api && npm run typecheck -w @orosaga/web && npm run typecheck -w @orosaga/worker",
     "test": "npm run test --workspaces --if-present",
     "test:coverage": "npm run test:coverage --workspaces --if-present",
-    "test:e2e": "playwright test",
+    "test:e2e": "node scripts/export-official-nginx-ci.mjs && playwright test",
     "test:e2e:update": "playwright test --update-snapshots",
     "db:generate": "npm run prisma:generate -w @orosaga/api",
     "db:migrate": "npm run prisma:migrate -w @orosaga/api",
     "db:seed": "npm run prisma:seed -w @orosaga/api",
     "check:sql-comments": "node scripts/check-sql-comments.mjs apps/api/prisma/migrations/202607210001_initial_cloud/migration.sql",
     "check:bundle": "node scripts/check-bundle-budget.mjs apps/web/dist/assets && node scripts/scan-web-bundle.mjs apps/web/dist",
-    "check:security": "node scripts/scan-secrets.mjs && node scripts/check-licenses.mjs && node scripts/export-official-nginx-ci.mjs"
+    "check:security": "node scripts/scan-secrets.mjs && node scripts/check-licenses.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.12.1",
