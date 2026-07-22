@@ -26,6 +26,23 @@ type DatabaseTransportEnv = {
   DATABASE_ALLOW_PLAINTEXT_INTERNAL: boolean;
 };
 
+export function databaseSchemaFromUrl(databaseUrl: string): string {
+  let url: URL;
+  try {
+    url = new URL(databaseUrl);
+  } catch {
+    throw new Error("DATABASE_URL must be a valid PostgreSQL URL");
+  }
+  if (!["postgres:", "postgresql:"].includes(url.protocol))
+    throw new Error("DATABASE_URL must use the PostgreSQL protocol");
+  const schema = url.searchParams.get("schema") ?? "public";
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(schema))
+    throw new Error(
+      "DATABASE_URL schema must be a valid PostgreSQL identifier",
+    );
+  return schema;
+}
+
 function validateProductionDatabase(
   env: DatabaseTransportEnv,
   context: z.RefinementCtx,

@@ -27,7 +27,7 @@
     "test:e2e:update": "playwright test --update-snapshots",
     "db:generate": "npm run prisma:generate -w @orosaga/api",
     "db:migrate": "npm run prisma:migrate -w @orosaga/api",
-    "db:seed": "npm run prisma:seed -w @orosaga/api",
+    "db:seed": "npm run build -w @orosaga/config && npm run prisma:seed -w @orosaga/api",
     "check:sql-comments": "node scripts/check-sql-comments.mjs apps/api/prisma/migrations/202607210001_initial_cloud/migration.sql",
     "check:bundle": "node scripts/check-bundle-budget.mjs apps/web/dist/assets && node scripts/scan-web-bundle.mjs apps/web/dist",
     "check:security": "node scripts/scan-secrets.mjs && node scripts/check-licenses.mjs"

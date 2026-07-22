@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { serverEnvSchema, workerEnvSchema } from "./index.js";
+import {
+  databaseSchemaFromUrl,
+  serverEnvSchema,
+  workerEnvSchema,
+} from "./index.js";
 
 const productionDatabase = {
   DATABASE_URL:
@@ -8,6 +12,16 @@ const productionDatabase = {
 };
 
 describe("server environment", () => {
+  it("extracts the runtime schema for Prisma driver adapters", () => {
+    expect(databaseSchemaFromUrl(productionDatabase.DATABASE_URL)).toBe(
+      "orosaga",
+    );
+    expect(databaseSchemaFromUrl("postgresql://db/test")).toBe("public");
+    expect(() =>
+      databaseSchemaFromUrl("postgresql://db/test?schema=bad-name"),
+    ).toThrow("valid PostgreSQL identifier");
+  });
+
   it("rejects missing secrets and parses safe defaults", () => {
     expect(serverEnvSchema.safeParse({}).success).toBe(false);
     const parsed = serverEnvSchema.parse({
