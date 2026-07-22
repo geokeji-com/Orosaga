@@ -12,6 +12,7 @@ export class HealthController {
     return { status: "ok" };
   }
 
+  @Public()
   @Get("readyz")
   async ready() {
     try {
