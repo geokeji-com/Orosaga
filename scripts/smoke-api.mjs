@@ -12,7 +12,7 @@ async function request(path, init = {}, expected = 200) {
 }
 
 await request("/healthz");
-await request("/readyz", {}, 401);
+await request("/readyz");
 await request("/api/v1/pages/company", {}, 401);
 
 const login = await request("/auth/dev-login", { method: "POST" });

@@ -5,6 +5,12 @@ import { PrismaService } from "../prisma/prisma.service.js";
 
 const roleRank = { EMPLOYEE: 1, EDITOR: 2, ADMIN: 3 } as const;
 
+function jsonText(value: Prisma.JsonValue | null, key: string) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const field = value[key];
+  return typeof field === "string" ? field : "";
+}
+
 @Injectable()
 export class PortalService {
   private weatherCache?: { value: unknown; expiresAt: number };
@@ -179,19 +185,37 @@ export class PortalService {
         },
         take: 5,
       }),
-      this.prisma.$queryRaw<
-        Array<{ id: string; slug: string; title: string; summary: string }>
-      >(Prisma.sql`
-        SELECT cp.id, cp.slug,
-               cr.payload->>'title' AS title,
-               cr.payload->>'summary' AS summary
-        FROM content_pages cp
-        JOIN content_revisions cr ON cr.id = cp.current_revision_id
-        WHERE cp.slug ILIKE ${`%${needle}%`}
-           OR cr.payload->>'title' ILIKE ${`%${needle}%`}
-           OR cr.payload->>'summary' ILIKE ${`%${needle}%`}
-        LIMIT 5
-      `),
+      this.prisma.contentPage.findMany({
+        where: {
+          OR: [
+            { slug: { contains: needle, mode: "insensitive" } },
+            {
+              currentRevision: {
+                is: {
+                  payload: {
+                    path: ["title"],
+                    string_contains: needle,
+                    mode: "insensitive",
+                  },
+                },
+              },
+            },
+            {
+              currentRevision: {
+                is: {
+                  payload: {
+                    path: ["summary"],
+                    string_contains: needle,
+                    mode: "insensitive",
+                  },
+                },
+              },
+            },
+          ],
+        },
+        include: { currentRevision: true },
+        take: 5,
+      }),
       this.prisma.workflowDefinition.findMany({
         where: { title: { contains: needle, mode: "insensitive" } },
         take: 5,
@@ -222,8 +246,11 @@ export class PortalService {
       ...pages.map((row) => ({
         id: row.id,
         type: "PAGE",
-        title: row.title || row.slug,
-        description: row.summary || "门户内容",
+        title:
+          jsonText(row.currentRevision?.payload ?? null, "title") || row.slug,
+        description:
+          jsonText(row.currentRevision?.payload ?? null, "summary") ||
+          "门户内容",
         href: `/${row.slug}`,
       })),
       ...workflows.map((row) => ({
