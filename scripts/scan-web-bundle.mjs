@@ -18,12 +18,8 @@ const text = (
       .map((file) => readFile(file, "utf8")),
   )
 ).join("\n");
-const legacy = await readFile("seed/legacy/OrganizationPage.tsx", "utf8");
-const names = [...legacy.matchAll(/name:\s*'([^']+)'/g)].map(
-  (match) => match[1],
-);
 const forbidden = [
-  ["employee name", names],
+  ["migration source path", [/seed\/(?:legacy|private)/]],
   ["Feishu node token", [/[A-Za-z0-9]{20,}\/wiki\//, /nodeToken/]],
   ["local URL", [/localhost:\d+/, /127\.0\.0\.1:\d+/]],
   ["bare IPv4 URL", [/https?:\/\/(?:\d{1,3}\.){3}\d{1,3}/]],

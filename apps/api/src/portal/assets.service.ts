@@ -49,10 +49,8 @@ export class AssetsService {
 
     if (process.env.NODE_ENV === "production") throw unavailable();
 
-    const root = resolve(
-      process.env.PRIVATE_ASSET_ROOT ??
-        resolve(process.cwd(), "../../seed/private"),
-    );
+    if (!process.env.PRIVATE_ASSET_ROOT) throw notFound();
+    const root = resolve(process.env.PRIVATE_ASSET_ROOT);
     const file = resolve(root, objectKey);
     if (file !== root && !file.startsWith(`${root}${sep}`)) throw notFound();
     try {

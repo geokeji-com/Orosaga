@@ -37,11 +37,7 @@ function publicObjectUrl(objectKey: string) {
 }
 
 void runOperation(async (prisma) => {
-  const repositoryRoot = resolve(__dirname, "../../../..");
-  const root = resolve(
-    process.env.PRIVATE_ASSET_ROOT ?? resolve(repositoryRoot, "seed/private"),
-    "team",
-  );
+  const root = resolve(required("PRIVATE_ASSET_ROOT"), "team");
   const filenames = (await readdir(root)).filter((name) =>
     name.endsWith(".png"),
   );

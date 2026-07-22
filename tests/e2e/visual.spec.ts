@@ -51,6 +51,11 @@ for (const viewport of [
       await expect(
         page.getByRole("heading", { name: target.heading }).first(),
       ).toBeVisible();
+      if (target.name === "company") {
+        await page.locator(".company-version").evaluate((element) => {
+          element.setAttribute("style", "display:block;width:20rem");
+        });
+      }
       await waitForImages(page);
       await expect(page).toHaveScreenshot(
         `${target.name}-${viewport.name}.png`,

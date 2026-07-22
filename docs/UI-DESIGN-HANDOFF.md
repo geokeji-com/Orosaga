@@ -347,7 +347,7 @@ Hero 内容
 | 素材 | 当前路径 | 规格 / 说明 | YiShanOS 处理 |
 | --- | --- | --- | --- |
 | 品牌图标 | `public/favicon.svg` | 64 × 64 viewBox；纸白、陶土太阳、双层山水 | 建议复制构图逻辑并替换品牌标识 |
-| 人员头像 | `public/team/*.png` | 256 × 256，RGB PNG，共 31 张 | 仅当前组织数据使用，不作为通用设计资产 |
+| 人员头像 | 受保护资产 API | 方形 RGB 图片 | 仅当前组织数据使用，不作为通用设计资产 |
 | 首页山水 | `src/styles.css` 中 `.shanshui-scene` 等 | CSS 生成，无独立图片 | 可复用结构与色彩关系 |
 | 营地地形 | `src/styles.css` 中 `.camps-hero-terrain` 等 | CSS 生成 | 可用于贡献、阶段、等级地图 |
 | 图标 | `lucide-react` | 统一线性图标，常用 14–24px | YiShanOS 继续使用同一图标库 |
@@ -522,7 +522,7 @@ styles/
 - 组织架构和人员名片：`src/OrganizationPage.tsx`
 - 营地地图和海拔分层：`src/CampsPage.tsx`
 - 品牌图标：`public/favicon.svg`
-- 人员头像：`public/team/*.png`
+- 人员头像：通过受保护资产 API 获取，不进入前端公共目录。
 
 ## 18. 已知工程注意事项
 
@@ -533,4 +533,4 @@ styles/
 
 ## 19. 云服务重构后的路径
 
-本文件保留原型期的视觉取值；当前实现入口已迁至 `apps/web/src`，共享云端样式位于 `apps/web/src/styles`，品牌图标位于 `apps/web/public`。员工头像已移出 Web 构建边界，迁移源位于 `seed/private/team`，生产由受保护 API 从私有 OSS 内网流式读取并同源返回。
+本文件保留原型期的视觉取值；当前实现入口已迁至 `apps/web/src`，共享云端样式位于 `apps/web/src/styles`，品牌图标位于 `apps/web/public`。员工头像不进入 Web 构建边界或公开仓库，生产由受保护 API 从私有 OSS 内网流式读取并同源返回。

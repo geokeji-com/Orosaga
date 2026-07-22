@@ -113,7 +113,7 @@ export const serverEnvSchema = z
     OSS_STS_TOKEN: z.string().optional(),
     PRIVATE_ASSET_ROOT: z.string().optional(),
     SYSTEM_LINK_ALLOWED_HOSTS: z.string().default(""),
-    FEISHU_WIKI_HOST: z.string().default("wanhuxian.feishu.cn"),
+    FEISHU_WIKI_HOST: z.string().default("example.feishu.cn"),
     WEATHER_API_URL: z.string().url().optional(),
     AUTH_DEV_BYPASS: booleanFromString,
     SYNC_INTERVAL_MINUTES: z.coerce.number().int().positive().default(30),
@@ -179,7 +179,7 @@ export const workerEnvSchema = z
     FEISHU_APP_ID: z.string().min(1),
     FEISHU_APP_SECRET: z.string().min(1),
     FEISHU_API_BASE_URL: z.string().url().default("https://open.feishu.cn"),
-    FEISHU_WIKI_HOST: z.string().default("wanhuxian.feishu.cn"),
+    FEISHU_WIKI_HOST: z.string().default("example.feishu.cn"),
     SYNC_INTERVAL_MINUTES: z.coerce.number().int().positive().default(30),
   })
   .superRefine((env, context) => {

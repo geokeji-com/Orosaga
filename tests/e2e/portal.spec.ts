@@ -21,6 +21,8 @@ test("protected portal routes and real 404 work", async ({ page }) => {
       page.getByRole("heading", { name: new RegExp(heading) }).first(),
     ).toBeVisible();
   }
+  const search = await page.request.get("/api/v1/search?q=示例");
+  expect(search.ok()).toBeTruthy();
   await page.goto("/does-not-exist");
   await expect(
     page.getByRole("heading", { name: "没有找到这条山路" }),

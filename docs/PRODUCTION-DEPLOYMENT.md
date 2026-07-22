@@ -47,16 +47,14 @@ $OROSAGA_COMPOSE --profile operations run --rm migrate \
   node apps/api/dist/cli/preflight.js --require-schema
 ```
 
-只有首次导入旧数据时才运行 seed。seed 会重建工作流阶段，后续发布禁止重复执行：
-
-```bash
-$OROSAGA_COMPOSE --profile operations run --rm seed
-```
+一次性生产 seed 已在首发完成后退役，当前公开树中的开发 seed 会拒绝在生产环境执行。后续发布只运行 expand-contract migration，不得重新导入旧人员或营地资料。
 
 上传并逐对象校验头像。服务器使用 OSS 内网 Endpoint；匿名校验使用公网域名：
 
 ```bash
 $OROSAGA_COMPOSE --profile operations run --rm \
+  -v /secure/orosaga-migration-assets:/migration-assets:ro \
+  -e PRIVATE_ASSET_ROOT=/migration-assets \
   -e OSS_UPLOAD_ENDPOINT=oss-cn-beijing-internal.aliyuncs.com \
   ops node apps/api/dist/cli/upload-avatars.js
 ```
@@ -124,7 +122,7 @@ acme.sh --install-cert --ecc -d orosaga.wanhuchangan.com \
 
 若 expand-contract 迁移本身异常，先停止新版本写入并由数据库负责人根据已记录快照/PITR 在隔离实例验证恢复；不得直接覆盖生产库或执行破坏性降级 SQL。
 
-生产对账成功后，删除服务器 release 下的 `seed/private` 和 `seed/legacy` 副本，并从当前开发分支移除这两类可识别迁移资料；OSS 与数据库是生产事实源。删除前必须核对31个对象和全部业务计数，并保留离线受控迁移源。
+首发生产对账通过后，服务器 release 与公开仓库当前树中的可识别迁移资料均应删除；OSS 与数据库是生产事实源。31个对象和全部业务计数验证记录必须保留，离线受控迁移源不得重新进入仓库或 release。
 
 ## 发布验收
 
