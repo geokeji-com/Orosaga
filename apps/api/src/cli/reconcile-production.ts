@@ -9,6 +9,7 @@ const expected = {
   workflowStages: 6,
   doneItems: 18,
   admins: 2,
+  unsafeLinksDisabled: 2,
 };
 
 void runOperation(async (prisma) => {
@@ -23,6 +24,10 @@ void runOperation(async (prisma) => {
     workflowStages,
     doneItems,
     admins,
+    unsafeLinksDisabled,
+    successfulOrganizationRuns,
+    successfulWikiRuns,
+    freshRealSources,
   ] = await Promise.all([
     prisma.employeeProfile.count({ where: { user: { status: "ACTIVE" } } }),
     prisma.user.count({
@@ -44,6 +49,23 @@ void runOperation(async (prisma) => {
     prisma.workflowStage.count(),
     prisma.workflowItem.count({ where: { itemType: "DONE" } }),
     prisma.user.count({ where: { status: "ACTIVE", role: "ADMIN" } }),
+    prisma.systemLink.count({
+      where: {
+        title: { in: ["YiShanOS 运营工作台", "报告生成系统"] },
+        enabled: false,
+      },
+    }),
+    prisma.syncRun.count({
+      where: { kind: "ORGANIZATION", status: "SUCCEEDED" },
+    }),
+    prisma.syncRun.count({ where: { kind: "WIKI", status: "SUCCEEDED" } }),
+    prisma.knowledgeSource.count({
+      where: {
+        enabled: true,
+        spaceId: { not: "legacy" },
+        lastSuccessAt: { not: null },
+      },
+    }),
   ]);
   const actual = {
     activeEmployees,
@@ -56,6 +78,10 @@ void runOperation(async (prisma) => {
     workflowStages,
     doneItems,
     admins,
+    unsafeLinksDisabled,
+    successfulOrganizationRuns,
+    successfulWikiRuns,
+    freshRealSources,
   };
   const checks = [
     actual.activeEmployees === expected.activeEmployees,
@@ -68,6 +94,10 @@ void runOperation(async (prisma) => {
     actual.workflowStages === expected.workflowStages,
     actual.doneItems === expected.doneItems,
     actual.admins >= expected.admins,
+    actual.unsafeLinksDisabled === expected.unsafeLinksDisabled,
+    actual.successfulOrganizationRuns >= 1,
+    actual.successfulWikiRuns >= 1,
+    actual.freshRealSources >= 1,
   ];
   console.log(
     JSON.stringify({

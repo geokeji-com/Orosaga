@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { runOperation } from "./prisma.js";
+import { resolveExcludedTokens } from "./wiki-source-config.js";
 
 const tokenResponse = z.object({
   code: z.number(),
@@ -81,7 +82,7 @@ void runOperation(async (prisma) => {
     );
   const spaceId = root.data.node.space_id;
 
-  const excludedTokens: string[] = [];
+  const directChildren: Array<{ node_token: string; title: string }> = [];
   let pageToken: string | undefined;
   do {
     const childrenUrl = new URL(
@@ -96,15 +97,10 @@ void runOperation(async (prisma) => {
       throw new Error(
         `Feishu Wiki children unavailable: ${page.msg ?? page.code}`,
       );
-    for (const item of page.data.items)
-      if (excludedTitles.includes(item.title))
-        excludedTokens.push(item.node_token);
+    directChildren.push(...page.data.items);
     pageToken = page.data.has_more ? page.data.page_token : undefined;
   } while (pageToken);
-  if (excludedTokens.length !== excludedTitles.length)
-    throw new Error(
-      "Not every configured Wiki exclusion title resolved to exactly one direct child",
-    );
+  const excludedTokens = resolveExcludedTokens(directChildren, excludedTitles);
 
   const source = await prisma.knowledgeSource.upsert({
     where: { spaceId_rootNodeToken: { spaceId, rootNodeToken: rootToken } },

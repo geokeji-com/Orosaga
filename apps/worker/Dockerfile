@@ -1,4 +1,5 @@
-FROM node:24.17.0-alpine3.23 AS build
+ARG NODE_IMAGE=node:24.17.0-alpine3.23
+FROM ${NODE_IMAGE} AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/package.json
@@ -16,7 +17,7 @@ COPY apps/worker apps/worker
 RUN cd apps/api && DATABASE_URL=postgresql://build:build@localhost/build node ../../node_modules/prisma/build/index.js generate
 RUN npm run build -w @orosaga/contracts && npm run build -w @orosaga/config && npm run build -w @orosaga/worker
 
-FROM node:24.17.0-alpine3.23
+FROM ${NODE_IMAGE}
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/node_modules node_modules

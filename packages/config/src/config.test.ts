@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { serverEnvSchema } from "./index.js";
+import { serverEnvSchema, workerEnvSchema } from "./index.js";
 
 describe("server environment", () => {
   it("rejects missing secrets and parses safe defaults", () => {
@@ -70,5 +70,35 @@ describe("server environment", () => {
         PRIVATE_ASSET_ROOT: "/app/seed/private",
       }).success,
     ).toBe(false);
+  });
+
+  it("rejects production deployment placeholders", () => {
+    const placeholder = {
+      NODE_ENV: "production",
+      DATABASE_URL:
+        "postgresql://USER:PASSWORD@RDS_HOST:5432/yishan_verse?schema=orosaga",
+      PUBLIC_ORIGIN: "https://orosaga.example.com",
+      SESSION_SECRET: ["GENERATE", "AT_LEAST_32_RANDOM_CHARACTERS"].join("_"),
+      FEISHU_APP_ID: "SET_ON_SERVER",
+      FEISHU_APP_SECRET: "SET_ON_SERVER",
+      FEISHU_REDIRECT_URI: "https://orosaga.example.com/auth/feishu/callback",
+      OSS_REGION: "oss-cn-hangzhou",
+      OSS_ENDPOINT: "oss-cn-hangzhou-internal.aliyuncs.com",
+      OSS_BUCKET: "private-bucket",
+      OSS_ACCESS_KEY_ID: "SET_ON_SERVER",
+      OSS_ACCESS_KEY_SECRET: "SET_ON_SERVER",
+    };
+    expect(serverEnvSchema.safeParse(placeholder).success).toBe(false);
+  });
+
+  it("validates a minimal worker environment without API secrets", () => {
+    expect(
+      workerEnvSchema.safeParse({
+        NODE_ENV: "production",
+        DATABASE_URL: "postgresql://db",
+        FEISHU_APP_ID: "cli",
+        FEISHU_APP_SECRET: "secret",
+      }).success,
+    ).toBe(true);
   });
 });

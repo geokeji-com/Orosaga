@@ -1,8 +1,6 @@
 name: orosaga
 
 x-runtime: &runtime
-  env_file:
-    - ${OROSAGA_ENV_FILE:-/opt/orosaga/shared/.env.production}
   restart: unless-stopped
   read_only: true
   tmpfs:
@@ -23,8 +21,10 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      args:
+        NODE_IMAGE: ${OROSAGA_NODE_IMAGE:-node:24.17.0-alpine3.23}
     env_file:
-      - ${OROSAGA_ENV_FILE:-/opt/orosaga/shared/.env.production}
+      - ${OROSAGA_DATABASE_ENV_FILE:-/opt/orosaga/shared/database.env}
     command:
       - sh
       - -c
@@ -45,7 +45,7 @@ services:
     image: orosaga-api:${OROSAGA_RELEASE_SHA:-local}
     profiles: ["operations"]
     env_file:
-      - ${OROSAGA_ENV_FILE:-/opt/orosaga/shared/.env.production}
+      - ${OROSAGA_DATABASE_ENV_FILE:-/opt/orosaga/shared/database.env}
     command:
       - sh
       - -c
@@ -65,12 +65,37 @@ services:
     networks:
       - orosaga
 
+  ops:
+    image: orosaga-api:${OROSAGA_RELEASE_SHA:-local}
+    profiles: ["operations"]
+    env_file:
+      - ${OROSAGA_OPERATIONS_ENV_FILE:-/opt/orosaga/shared/operations.env}
+    command: ["node", "--version"]
+    volumes:
+      - ./seed/legacy:/app/seed/legacy:ro
+      - ./seed/private:/app/seed/private:ro
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - orosaga
+
   api:
     <<: *runtime
+    env_file:
+      - ${OROSAGA_API_ENV_FILE:-/opt/orosaga/shared/api.env}
     image: orosaga-api:${OROSAGA_RELEASE_SHA:-local}
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      args:
+        NODE_IMAGE: ${OROSAGA_NODE_IMAGE:-node:24.17.0-alpine3.23}
     healthcheck:
       test:
         - CMD
@@ -84,10 +109,14 @@ services:
 
   worker:
     <<: *runtime
+    env_file:
+      - ${OROSAGA_WORKER_ENV_FILE:-/opt/orosaga/shared/worker.env}
     image: orosaga-worker:${OROSAGA_RELEASE_SHA:-local}
     build:
       context: .
       dockerfile: apps/worker/Dockerfile
+      args:
+        NODE_IMAGE: ${OROSAGA_NODE_IMAGE:-node:24.17.0-alpine3.23}
 
   web:
     restart: unless-stopped
@@ -98,6 +127,9 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        NODE_IMAGE: ${OROSAGA_NODE_IMAGE:-node:24.17.0-alpine3.23}
+        NGINX_IMAGE: ${OROSAGA_NGINX_IMAGE:-nginx:1.28.3-alpine3.23}
     ports:
       - "127.0.0.1:18088:80"
     depends_on:

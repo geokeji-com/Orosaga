@@ -3,6 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import OSS from "ali-oss";
 import { runOperation } from "./prisma.js";
+import { assertPrivateBeforeUpload } from "./oss-private-preflight.js";
 
 const digest = (bytes: Buffer) =>
   createHash("sha256").update(bytes).digest("hex");
@@ -54,6 +55,11 @@ void runOperation(async (prisma) => {
     );
 
   const oss = client();
+  const preflightAnonymousStatus = await assertPrivateBeforeUpload(
+    oss,
+    required("OSS_BUCKET"),
+    publicObjectUrl,
+  );
   let uploaded = 0;
   for (const asset of assets) {
     const filename = asset.objectKey.slice("team/".length);
@@ -64,7 +70,10 @@ void runOperation(async (prisma) => {
     if (bytes.length !== asset.size || digest(bytes) !== asset.sha256)
       throw new Error("Local asset failed size or hash verification");
     await oss.put(asset.objectKey, path, {
-      headers: { "Content-Type": asset.mimeType },
+      headers: {
+        "Content-Type": asset.mimeType,
+        "x-oss-object-acl": "private",
+      },
     });
     uploaded += 1;
   }
@@ -97,6 +106,7 @@ void runOperation(async (prisma) => {
       operation: "upload-avatars",
       uploaded,
       verified,
+      preflightAnonymousStatus,
       anonymousStatus: anonymous.status,
     }),
   );

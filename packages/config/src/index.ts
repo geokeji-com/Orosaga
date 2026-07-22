@@ -5,6 +5,22 @@ const booleanFromString = z
   .default("false")
   .transform((value) => value === "true");
 
+const placeholderPattern =
+  /SET_ON_SERVER|GENERATE_AT_LEAST|USER:PASSWORD|RDS_HOST/;
+
+function rejectPlaceholder(
+  context: z.RefinementCtx,
+  field: string,
+  value: string | undefined,
+) {
+  if (value && placeholderPattern.test(value))
+    context.addIssue({
+      code: "custom",
+      path: [field],
+      message: `${field} contains a deployment placeholder`,
+    });
+}
+
 export const serverEnvSchema = z
   .object({
     NODE_ENV: z
@@ -34,6 +50,18 @@ export const serverEnvSchema = z
   })
   .superRefine((env, context) => {
     if (env.NODE_ENV !== "production") return;
+    for (const field of [
+      "DATABASE_URL",
+      "SESSION_SECRET",
+      "FEISHU_APP_ID",
+      "FEISHU_APP_SECRET",
+      "OSS_REGION",
+      "OSS_ENDPOINT",
+      "OSS_BUCKET",
+      "OSS_ACCESS_KEY_ID",
+      "OSS_ACCESS_KEY_SECRET",
+    ] as const)
+      rejectPlaceholder(context, field, env[field]);
     for (const field of [
       "OSS_REGION",
       "OSS_ENDPOINT",
@@ -68,6 +96,32 @@ export function parseServerEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): ServerEnv {
   return serverEnvSchema.parse(env);
+}
+
+export const workerEnvSchema = z
+  .object({
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+    DATABASE_URL: z.string().min(1),
+    FEISHU_APP_ID: z.string().min(1),
+    FEISHU_APP_SECRET: z.string().min(1),
+    FEISHU_API_BASE_URL: z.string().url().default("https://open.feishu.cn"),
+    FEISHU_WIKI_HOST: z.string().default("wanhuxian.feishu.cn"),
+    SYNC_INTERVAL_MINUTES: z.coerce.number().int().positive().default(30),
+  })
+  .superRefine((env, context) => {
+    if (env.NODE_ENV !== "production") return;
+    for (const field of [
+      "DATABASE_URL",
+      "FEISHU_APP_ID",
+      "FEISHU_APP_SECRET",
+    ] as const)
+      rejectPlaceholder(context, field, env[field]);
+  });
+
+export function parseWorkerEnv(env: NodeJS.ProcessEnv = process.env) {
+  return workerEnvSchema.parse(env);
 }
 
 export const webEnvSchema = z.object({

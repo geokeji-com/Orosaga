@@ -1,11 +1,12 @@
 import { Client } from "pg";
-import { parseServerEnv } from "@orosaga/config";
 
 type Check = { name: string; ok: boolean; detail: string };
 
 async function main() {
-  const env = parseServerEnv();
-  const url = new URL(env.DATABASE_URL);
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) throw new Error("DATABASE_URL is required");
+  const requireSchema = process.argv.includes("--require-schema");
+  const url = new URL(databaseUrl);
   const checks: Check[] = [];
   checks.push({
     name: "database-schema-parameter",
@@ -18,7 +19,7 @@ async function main() {
     detail: url.searchParams.get("sslmode") ?? "missing",
   });
 
-  const client = new Client({ connectionString: env.DATABASE_URL });
+  const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
     const result = await client.query<{
@@ -55,7 +56,11 @@ async function main() {
         detail: row.database_name,
       },
       { name: "tls-active", ok: row.ssl, detail: String(row.ssl) },
-      { name: "schema-exists", ok: true, detail: String(row.schema_exists) },
+      {
+        name: "schema-exists",
+        ok: !requireSchema || row.schema_exists,
+        detail: String(row.schema_exists),
+      },
       {
         name: "schema-ready",
         ok: row.schema_ready,
