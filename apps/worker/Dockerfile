@@ -21,4 +21,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/node_modules node_modules
 COPY --from=build /app/apps/worker/dist apps/worker/dist
+COPY --from=build /app/packages/contracts/package.json packages/contracts/package.json
+COPY --from=build /app/packages/contracts/dist packages/contracts/dist
+COPY --from=build /app/packages/config/package.json packages/config/package.json
+COPY --from=build /app/packages/config/dist packages/config/dist
+USER node
 CMD ["node", "apps/worker/dist/index.js"]

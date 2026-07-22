@@ -27,14 +27,48 @@ describe("server environment", () => {
       FEISHU_REDIRECT_URI: "https://orosaga.example.com/auth/feishu/callback",
     };
     expect(serverEnvSchema.safeParse(base).success).toBe(false);
+    const production = {
+      ...base,
+      OSS_REGION: "oss-cn-hangzhou",
+      OSS_ENDPOINT: "oss-cn-hangzhou-internal.aliyuncs.com",
+      OSS_BUCKET: "private-bucket",
+      OSS_ACCESS_KEY_ID: "key-id",
+      OSS_ACCESS_KEY_SECRET: "key-secret",
+    };
+    expect(serverEnvSchema.safeParse(production).success).toBe(true);
+    expect(
+      serverEnvSchema.safeParse({ ...production, OSS_ENDPOINT: undefined })
+        .success,
+    ).toBe(false);
+  });
+
+  it("rejects development auth and local asset fallbacks in production", () => {
+    const production = {
+      NODE_ENV: "production",
+      DATABASE_URL: "postgresql://db",
+      PUBLIC_ORIGIN: "https://orosaga.example.com",
+      SESSION_SECRET: "x".repeat(32),
+      FEISHU_APP_ID: "cli",
+      FEISHU_APP_SECRET: "secret",
+      FEISHU_REDIRECT_URI: "https://orosaga.example.com/auth/feishu/callback",
+      OSS_REGION: "oss-cn-hangzhou",
+      OSS_ENDPOINT: "oss-cn-hangzhou-internal.aliyuncs.com",
+      OSS_BUCKET: "private-bucket",
+      OSS_ACCESS_KEY_ID: "key-id",
+      OSS_ACCESS_KEY_SECRET: "key-secret",
+    };
+
     expect(
       serverEnvSchema.safeParse({
-        ...base,
-        OSS_REGION: "oss-cn-hangzhou",
-        OSS_BUCKET: "private-bucket",
-        OSS_ACCESS_KEY_ID: "key-id",
-        OSS_ACCESS_KEY_SECRET: "key-secret",
+        ...production,
+        AUTH_DEV_BYPASS: "true",
       }).success,
-    ).toBe(true);
+    ).toBe(false);
+    expect(
+      serverEnvSchema.safeParse({
+        ...production,
+        PRIVATE_ASSET_ROOT: "/app/seed/private",
+      }).success,
+    ).toBe(false);
   });
 });

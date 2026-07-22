@@ -1,0 +1,117 @@
+name: orosaga
+
+x-runtime: &runtime
+  env_file:
+    - ${OROSAGA_ENV_FILE:-/opt/orosaga/shared/.env.production}
+  restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp
+  init: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  stop_grace_period: 30s
+  networks:
+    - orosaga
+
+services:
+  migrate:
+    profiles: ["operations"]
+    image: orosaga-api:${OROSAGA_RELEASE_SHA:-local}
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file:
+      - ${OROSAGA_ENV_FILE:-/opt/orosaga/shared/.env.production}
+    command:
+      - sh
+      - -c
+      - cd apps/api && node ../../node_modules/prisma/build/index.js migrate deploy
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - orosaga
+
+  seed:
+    image: orosaga-api:${OROSAGA_RELEASE_SHA:-local}
+    profiles: ["operations"]
+    env_file:
+      - ${OROSAGA_ENV_FILE:-/opt/orosaga/shared/.env.production}
+    command:
+      - sh
+      - -c
+      - cd apps/api && node ../../node_modules/tsx/dist/cli.mjs prisma/seed.ts
+    volumes:
+      - ./seed/legacy:/app/seed/legacy:ro
+      - ./seed/private:/app/seed/private:ro
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - orosaga
+
+  api:
+    <<: *runtime
+    image: orosaga-api:${OROSAGA_RELEASE_SHA:-local}
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+  worker:
+    <<: *runtime
+    image: orosaga-worker:${OROSAGA_RELEASE_SHA:-local}
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+
+  web:
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    image: orosaga-web:${OROSAGA_RELEASE_SHA:-local}
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "127.0.0.1:18088:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - orosaga
+
+networks:
+  orosaga:
+    name: orosaga

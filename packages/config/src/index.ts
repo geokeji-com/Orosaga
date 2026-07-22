@@ -20,6 +20,7 @@ export const serverEnvSchema = z
     FEISHU_REDIRECT_URI: z.string().url(),
     FEISHU_API_BASE_URL: z.string().url().default("https://open.feishu.cn"),
     OSS_REGION: z.string().optional(),
+    OSS_ENDPOINT: z.string().trim().min(1).optional(),
     OSS_BUCKET: z.string().optional(),
     OSS_ACCESS_KEY_ID: z.string().optional(),
     OSS_ACCESS_KEY_SECRET: z.string().optional(),
@@ -35,6 +36,7 @@ export const serverEnvSchema = z
     if (env.NODE_ENV !== "production") return;
     for (const field of [
       "OSS_REGION",
+      "OSS_ENDPOINT",
       "OSS_BUCKET",
       "OSS_ACCESS_KEY_ID",
       "OSS_ACCESS_KEY_SECRET",
@@ -46,6 +48,18 @@ export const serverEnvSchema = z
           message: `${field} is required in production`,
         });
     }
+    if (env.AUTH_DEV_BYPASS)
+      context.addIssue({
+        code: "custom",
+        path: ["AUTH_DEV_BYPASS"],
+        message: "AUTH_DEV_BYPASS must be false in production",
+      });
+    if (env.PRIVATE_ASSET_ROOT)
+      context.addIssue({
+        code: "custom",
+        path: ["PRIVATE_ASSET_ROOT"],
+        message: "PRIVATE_ASSET_ROOT is not allowed in production",
+      });
   });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

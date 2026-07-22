@@ -1,0 +1,87 @@
+import { Client } from "pg";
+import { parseServerEnv } from "@orosaga/config";
+
+type Check = { name: string; ok: boolean; detail: string };
+
+async function main() {
+  const env = parseServerEnv();
+  const url = new URL(env.DATABASE_URL);
+  const checks: Check[] = [];
+  checks.push({
+    name: "database-schema-parameter",
+    ok: url.searchParams.get("schema") === "orosaga",
+    detail: url.searchParams.get("schema") ?? "missing",
+  });
+  checks.push({
+    name: "database-ssl-mode",
+    ok: url.searchParams.get("sslmode") === "require",
+    detail: url.searchParams.get("sslmode") ?? "missing",
+  });
+
+  const client = new Client({ connectionString: env.DATABASE_URL });
+  await client.connect();
+  try {
+    const result = await client.query<{
+      version: string;
+      database_name: string;
+      ssl: boolean;
+      schema_exists: boolean;
+      schema_ready: boolean;
+      trgm_available: boolean;
+    }>(`
+      SELECT
+        current_setting('server_version') AS version,
+        current_database() AS database_name,
+        COALESCE((SELECT ssl FROM pg_stat_ssl WHERE pid = pg_backend_pid()), false) AS ssl,
+        EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'orosaga') AS schema_exists,
+        CASE
+          WHEN EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'orosaga')
+            THEN has_schema_privilege(current_user, 'orosaga', 'USAGE,CREATE')
+          ELSE has_database_privilege(current_user, current_database(), 'CREATE')
+        END AS schema_ready,
+        EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'pg_trgm') AS trgm_available
+    `);
+    const row = result.rows[0];
+    if (!row) throw new Error("RDS preflight returned no row");
+    checks.push(
+      {
+        name: "postgres-version",
+        ok: row.version.startsWith("16."),
+        detail: row.version,
+      },
+      {
+        name: "database-name",
+        ok: row.database_name === "yishan_verse",
+        detail: row.database_name,
+      },
+      { name: "tls-active", ok: row.ssl, detail: String(row.ssl) },
+      { name: "schema-exists", ok: true, detail: String(row.schema_exists) },
+      {
+        name: "schema-ready",
+        ok: row.schema_ready,
+        detail: String(row.schema_ready),
+      },
+      {
+        name: "pg-trgm-available",
+        ok: row.trgm_available,
+        detail: String(row.trgm_available),
+      },
+    );
+  } finally {
+    await client.end();
+  }
+
+  for (const check of checks) console.log(JSON.stringify(check));
+  if (checks.some((check) => !check.ok)) process.exitCode = 1;
+}
+
+void main().catch((error: unknown) => {
+  console.error(
+    JSON.stringify({
+      name: "preflight",
+      ok: false,
+      detail: error instanceof Error ? error.message : "unknown error",
+    }),
+  );
+  process.exitCode = 1;
+});

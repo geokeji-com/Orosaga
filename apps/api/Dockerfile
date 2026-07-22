@@ -11,7 +11,6 @@ RUN npm ci
 COPY tsconfig.base.json ./
 COPY packages packages
 COPY apps/api apps/api
-COPY seed/legacy seed/legacy
 RUN cd apps/api && DATABASE_URL=postgresql://build:build@localhost/build node ../../node_modules/prisma/build/index.js generate
 RUN npm run build -w @orosaga/contracts && npm run build -w @orosaga/config && npm run build -w @orosaga/api
 
@@ -20,6 +19,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/node_modules node_modules
 COPY --from=build /app/apps/api apps/api
-COPY --from=build /app/packages packages
-COPY --from=build /app/seed/legacy seed/legacy
+COPY --from=build /app/packages/contracts/package.json packages/contracts/package.json
+COPY --from=build /app/packages/contracts/dist packages/contracts/dist
+COPY --from=build /app/packages/config/package.json packages/config/package.json
+COPY --from=build /app/packages/config/dist packages/config/dist
+USER node
 CMD ["node", "apps/api/dist/main.js"]

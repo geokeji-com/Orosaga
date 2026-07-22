@@ -40,8 +40,8 @@ npm run check:bundle
 
 匿名请求只允许 `/healthz`、飞书登录入口和 callback；`/readyz` 也需要受保护的运维访问。所有业务 API 需要服务端会话；写请求还需要 CSRF token 与角色校验。系统入口必须为管理员白名单中的 HTTPS 域名。
 
-生产密钥不得写入 `.env` 文件或容器镜像；由阿里云 KMS 在部署时注入。Web 静态产物由 Nginx 提供，API 与 Worker 作为独立容器运行。
+生产密钥不得进入仓库、镜像、构建参数或日志。首发阶段只写入服务器 root 所有、权限 `0600` 的 `/opt/orosaga/shared/.env.production`；稳定后迁移到 KMS。Web 静态产物由 Nginx 提供，API 与 Worker 作为独立容器运行。
 
-Worker 使用锁定版本的飞书官方 Node SDK 获取并缓存应用身份 token。生产头像经受保护 API 生成 5 分钟 OSS V4 签名地址；本地开发才读取 `seed/private`，不会把头像复制进 Web bundle。
+Worker 使用同一个飞书企业自建应用的应用身份同步组织和 Wiki，不依赖个人 `lark-cli`。生产头像由 API 从北京地域私有 OSS 内网流式读取并同源返回，浏览器不会收到 OSS 地址或凭据；本地文件回退只允许 development/test。
 
-详细说明见 [架构说明](docs/CLOUD-ARCHITECTURE.md)、[迁移运行手册](docs/MIGRATION-RUNBOOK.md) 和 [生产运行手册](docs/OPERATIONS.md)。
+详细说明见 [架构说明](docs/CLOUD-ARCHITECTURE.md)、[迁移运行手册](docs/MIGRATION-RUNBOOK.md)、[生产运行手册](docs/OPERATIONS.md) 和 [首发部署手册](docs/PRODUCTION-DEPLOYMENT.md)。
