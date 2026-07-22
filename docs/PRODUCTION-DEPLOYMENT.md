@@ -34,7 +34,7 @@ $OROSAGA_COMPOSE build worker
 $OROSAGA_COMPOSE build web
 ```
 
-若中国区服务器无法连接 Docker Hub，可先运行 `deploy/build-node-base.sh`：脚本从华为云 Node 镜像下载官方 Linux x64 归档，并以 Node 官方发布的 SHA-256 固定校验后构建 `orosaga-node:24.17.0`。随后设置 `OROSAGA_NODE_IMAGE=orosaga-node:24.17.0`；CI 仍使用默认官方镜像。任何代理 Nginx 基础镜像只允许回环灰度，必须记录 digest，正式域名切换前恢复并验证官方固定版本。
+若中国区服务器无法连接 Docker Hub，可先运行 `deploy/build-node-base.sh`：脚本从华为云 Node 镜像下载官方 Linux x64 归档并校验固定 SHA-256，同时下载 npm `11.6.2` 官方归档并校验固定 SHA-1，随后构建 `orosaga-node:24.17.0` 并验证 Node/npm 版本。设置 `OROSAGA_NODE_IMAGE=orosaga-node:24.17.0` 后再构建应用；CI 仍使用默认官方镜像。任何代理 Nginx 基础镜像只允许回环灰度，必须记录 digest，正式域名切换前恢复并验证官方固定版本。
 
 数据库写入前必须记录 RDS 手工快照 ID、PITR 可用时间点、恢复负责人和验证时间；缺少任一项立即停止。只读预检和 migration 必须在应用启动前完成，迁移后再次强制检查 schema：
 
