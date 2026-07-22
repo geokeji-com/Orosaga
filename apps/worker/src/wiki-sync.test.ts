@@ -169,6 +169,14 @@ describe("runWikiSync", () => {
     const campUpdate = tx.camp.update.mock.calls[0]![0];
     expect(campUpdate.data).not.toHaveProperty("displayCode");
     expect(campUpdate.data).not.toHaveProperty("id");
+    expect(campUpdate.data).not.toHaveProperty("legacyDescendantCount");
+    expect(campUpdate.data).toHaveProperty("documentCount", 1);
+    expect(tx.camp.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        legacyDescendantCount: 0,
+        documentCount: 0,
+      }),
+    });
     expect(tx.wikiNode.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({

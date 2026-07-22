@@ -205,7 +205,7 @@ export async function runWikiSync(
                 data: {
                   sourceId: source.id,
                   sortOrder: position,
-                  ...metrics,
+                  documentCount: metrics.documentCount,
                   enabled: true,
                 },
               });
