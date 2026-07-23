@@ -61,27 +61,30 @@ describe("AuthGate history protection", () => {
     expect(await screen.findByText("登录页")).toBeVisible();
   });
 
-  it("revalidates a page restored from the browser back-forward cache", async () => {
-    const client = new QueryClient();
-    vi.mocked(api).mockResolvedValueOnce(user);
-    renderGate(client);
-    expect(await screen.findByText("受保护内容")).toBeVisible();
+  it.each([true, false])(
+    "revalidates a page restored from browser history (persisted=%s)",
+    async (persisted) => {
+      const client = new QueryClient();
+      vi.mocked(api).mockResolvedValueOnce(user);
+      renderGate(client);
+      expect(await screen.findByText("受保护内容")).toBeVisible();
 
-    let rejectRequest: ((reason: unknown) => void) | undefined;
-    vi.mocked(api).mockReturnValueOnce(
-      new Promise((_, reject) => {
-        rejectRequest = reject;
-      }),
-    );
-    const pageShow = new Event("pageshow");
-    Object.defineProperty(pageShow, "persisted", { value: true });
-    window.dispatchEvent(pageShow);
+      let rejectRequest: ((reason: unknown) => void) | undefined;
+      vi.mocked(api).mockReturnValueOnce(
+        new Promise((_, reject) => {
+          rejectRequest = reject;
+        }),
+      );
+      const pageShow = new Event("pageshow");
+      Object.defineProperty(pageShow, "persisted", { value: persisted });
+      window.dispatchEvent(pageShow);
 
-    await waitFor(() =>
-      expect(screen.getByText("正在进入山海经…")).toBeVisible(),
-    );
-    expect(screen.queryByText("受保护内容")).not.toBeInTheDocument();
-    rejectRequest?.(new ApiError(401, "UNAUTHORIZED", "expired"));
-    expect(await screen.findByText("登录页")).toBeVisible();
-  });
+      await waitFor(() =>
+        expect(screen.getByText("正在进入山海经…")).toBeVisible(),
+      );
+      expect(screen.queryByText("受保护内容")).not.toBeInTheDocument();
+      rejectRequest?.(new ApiError(401, "UNAUTHORIZED", "expired"));
+      expect(await screen.findByText("登录页")).toBeVisible();
+    },
+  );
 });

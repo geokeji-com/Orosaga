@@ -24,9 +24,7 @@ export function AuthGate() {
   const refetch = me.refetch;
 
   useEffect(() => {
-    const revalidateRestoredPage = (event: PageTransitionEvent) => {
-      if (event.persisted) void refetch();
-    };
+    const revalidateRestoredPage = () => void refetch();
     window.addEventListener("pageshow", revalidateRestoredPage);
     return () => window.removeEventListener("pageshow", revalidateRestoredPage);
   }, [refetch]);
