@@ -48,7 +48,7 @@ const camps = await (await request("/api/v1/camps", authenticated())).json();
 const systems = await (
   await request("/api/v1/system-links", authenticated())
 ).json();
-if (departments.length !== 5 || camps.length !== 16 || systems.length !== 5)
+if (departments.length !== 5 || camps.length !== 16 || systems.length !== 7)
   throw new Error("Seeded read API counts do not match baseline");
 
 const page = await (

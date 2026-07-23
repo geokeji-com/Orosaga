@@ -18,6 +18,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { Brand } from "./components/Brand";
+import { AccountMenu } from "./components/AccountMenu";
 import { api } from "./lib/api";
 
 type Stage = {
@@ -82,9 +83,12 @@ export default function WorkflowPage() {
       <header className="topbar workflow-topbar">
         <Brand />
         <span className="workflow-page-location">运营工作流</span>
-        <a className="workflow-back" href="/">
-          <ArrowLeft size={16} /> 返回知识地图
-        </a>
+        <div className="topbar-account-actions">
+          <a className="workflow-back" href="/">
+            <ArrowLeft size={16} /> 返回知识地图
+          </a>
+          <AccountMenu />
+        </div>
       </header>
       <main className="workflow-page">
         <section

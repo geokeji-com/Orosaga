@@ -18,6 +18,7 @@ import type { Department, Employee } from "@orosaga/contracts";
 import { api } from "./lib/api";
 import { compareEmployees } from "./organization-order";
 import { Brand } from "./components/Brand";
+import { AccountMenu } from "./components/AccountMenu";
 
 async function allMembers() {
   const items: Employee[] = [];
@@ -259,9 +260,12 @@ export default function OrganizationPage() {
       <header className="topbar organization-topbar">
         <Brand />
         <span className="organization-page-location">组织与协作</span>
-        <a className="organization-back" href="/">
-          <ArrowLeft size={16} /> 返回知识地图
-        </a>
+        <div className="topbar-account-actions">
+          <a className="organization-back" href="/">
+            <ArrowLeft size={16} /> 返回知识地图
+          </a>
+          <AccountMenu />
+        </div>
       </header>
       <main className="organization-page">
         <div className="organization-intro section-wrap">

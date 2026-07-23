@@ -63,3 +63,48 @@ test("login is accessible and preserves a safe return address", async ({
     ),
   ).toEqual([]);
 });
+
+test("authenticated pages identify the user and logout clears access", async ({
+  context,
+  page,
+}) => {
+  expect((await context.request.post("/auth/dev-login")).ok()).toBeTruthy();
+  for (const route of [
+    "/",
+    "/company",
+    "/organization",
+    "/systems",
+    "/workflow",
+    "/camps",
+    "/admin",
+  ]) {
+    await page.goto(route);
+    await expect(
+      page.getByRole("button", { name: "账户：本地管理员" }),
+    ).toBeVisible();
+  }
+
+  const missingCsrf = await page.request.post("/api/v1/logout", {
+    headers: { "x-csrf-token": "" },
+  });
+  expect(missingCsrf.status()).toBe(403);
+
+  const account = page.getByRole("button", { name: "账户：本地管理员" });
+  await account.click();
+  await expect(page.getByText("管理员", { exact: true })).toBeVisible();
+  const accountA11y = await new AxeBuilder({ page })
+    .include(".admin-topbar")
+    .analyze();
+  expect(
+    accountA11y.violations.filter((item) =>
+      ["serious", "critical"].includes(item.impact ?? ""),
+    ),
+  ).toEqual([]);
+  await page.getByRole("button", { name: "退出登录" }).click();
+  await expect(page).toHaveURL("/login");
+  expect((await page.request.get("/api/v1/me")).status()).toBe(401);
+
+  await page.goBack();
+  await expect(page).toHaveURL((url) => url.pathname === "/login");
+  await expect(page.locator(".admin-layout")).toHaveCount(0);
+});

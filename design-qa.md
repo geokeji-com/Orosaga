@@ -1,28 +1,39 @@
-# Orosaga 视觉修复 QA
+# Orosaga 账户入口 Design QA
 
-状态：本地与固定 Linux 设计验收通过；生产验收待合并部署后复核。
+## Comparison Target
 
-## 视觉真值
+- Source visual truth: commit `c6052bb`, `tests/e2e/visual.spec.ts-snapshots/home-desktop-1440-chromium-darwin.png` and `home-mobile-320-chromium-darwin.png`.
+- Implementation: the same tracked screenshot paths in the current branch, plus `tests/e2e/account-menu.visual.spec.ts-snapshots/*-chromium-{darwin,linux}.png`.
+- Viewports: desktop `1440×1000`, tablet `1024×900` and `768×900`, mobile `390×844` and `320×700`.
+- Pixels and density: source and implementation use identical CSS viewport size and `deviceScaleFactor=1`; full-page desktop captures are `1440×3870`, mobile captures are `320×5282`.
+- State: authenticated portal and admin, account control closed and open.
 
-- 来源提交：`44cfd7e`
-- 页面：首页、公司、组织、系统、工作流、营地
-- 视口：`1440×1000`、`1024×900`、`768×900`、`390×844`、`320×700`
-- 环境：Playwright `1.61.1`、固定日期与天气、本地 DM Serif Display / Noto Sans SC / Noto Serif SC、稳定脱敏人员与营地内容
+## Evidence
 
-## 检查结果
+- Full-view comparison: `/tmp/orosaga-account-qa/desktop-full-comparison.png`.
+- Focused desktop header comparison: `/tmp/orosaga-account-qa/desktop-topbar-comparison.png`.
+- Focused mobile header comparison: `/tmp/orosaga-account-qa/mobile-topbar-comparison.png`.
+- Open-state evidence: portal/admin desktop and mobile snapshots in `tests/e2e/account-menu.visual.spec.ts-snapshots/`.
+- Open-state screenshots hide the unrelated `main` content after the disclosure opens, so they compare only the stable topbar, paper background and account popover without masking any part of the account UI.
+- Automated comparison across all 60 portal baselines found no material changes below the 72px/64px header boundary; no baseline had more than 64 pixels with a channel difference above 16 outside the header.
+- Focused regions were required because the new identity trigger, popover, role label and logout action are too small to assess in the downscaled full-page comparison.
 
-- 30 张 Chromium/Darwin 真值均从原提交重新生成，当前实现 30/30 通过同平台截图比较。
-- 30 张 Chromium/Linux 真值由 GitHub Actions 固定环境重新生成；制品 SHA-256 为 `3007c360f644ce3b391f04ad100010bef9d8b4f2a6e6c06b8575df061dc50a72`，数量与三张代表性截图人工检查通过。
-- 公司页 1440 与营地页 390 已将原版、当前截图放在同一个只读比较页面中并排人工检查；结构、字体、间距、颜色与断点布局一致。
-- `/company` 匿名访问在业务页面挂载前跳转到 `/login?returnTo=%2Fcompany`。
-- 登录页品牌图 `complete=true`、`naturalWidth=150`；登录按钮为深色背景与白色文字，键盘焦点及 Axe 严重/致命问题检查通过。
-- 生产构建 favicon 和页面品牌图均引用带内容哈希的 `/assets/orosaga-mark-*.svg`；旧 `/favicon.svg` 只保留无缓存兼容。
-- 公司页后台使用专用结构化 schema，可编辑所有展示分区；保存继续使用预期版本、不可变 revision、审计与回滚。
-- 纳入 Linux 真值后再次执行全部 CI 和三类生产镜像构建，全部通过后才允许合并部署。
+## Findings
 
-## 生产复核
+- No actionable P0/P1/P2 findings.
+- Typography: existing local Noto Sans SC UI treatment is preserved; name truncation and mobile hiding do not alter page hierarchy.
+- Spacing/layout: the desktop action cluster and 36px mobile trigger remain inside every tested viewport without overlapping search, navigation, brand or back links.
+- Colors/tokens: muted green identity treatment and restrained red logout action match existing portal tokens and retain visible focus states.
+- Images/icons: the original brand asset is unchanged; account and logout actions use the existing Lucide icon family, with no new placeholder or generated imagery.
+- Copy/content: only current display name, localized role and explicit logout states are added; no Feishu external identifier is rendered.
+- Interaction/accessibility: disclosure semantics, Escape focus restoration, outside close, duplicate-submit protection, CSRF rejection, logout cache clearing and Axe serious/critical checks pass.
+- Console: the four open-state visual scenarios collect console and page errors and require an empty result.
 
-- 使用全新会话确认六个受保护路由全部落到独立登录页。
-- 完成真实飞书登录并确认返回原路径。
-- 检查六页、未知路径 404、品牌图自然尺寸、静态包敏感信息和浏览器网络请求。
-- 上线前后比较 `publish.wanhuchangan.com` 配置、证书与私钥 SHA-256，并确认页面内容未变化。
+## Comparison History
+
+- Initial comparison found the intended header-only change and no structural drift. No P0/P1/P2 visual fix was required.
+- Desktop and mobile open-state captures were then added to cover the previously unbaselined popover and admin header.
+
+## Final Result
+
+final result: passed

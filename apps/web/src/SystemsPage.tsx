@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Brand } from "./components/Brand";
+import { AccountMenu } from "./components/AccountMenu";
 import { api } from "./lib/api";
 
 type SystemLink = {
@@ -71,9 +72,12 @@ export default function SystemsPage() {
       <header className="topbar systems-topbar">
         <Brand />
         <span className="systems-page-location">系统地图 · 工作台入口</span>
-        <a className="systems-back" href="/">
-          <ArrowLeft size={16} /> 返回知识地图
-        </a>
+        <div className="topbar-account-actions">
+          <a className="systems-back" href="/">
+            <ArrowLeft size={16} /> 返回知识地图
+          </a>
+          <AccountMenu />
+        </div>
       </header>
       <main className="systems-page">
         <section className="systems-hero" aria-labelledby="systems-title">
