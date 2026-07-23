@@ -1,15 +1,14 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, LogOut } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { useMe } from "../auth/AuthGate";
 import { ApiError, api } from "../lib/api";
+import { replaceWithLogin } from "../lib/session-navigation";
 import { accountInitials, accountRoleLabel } from "./account-menu-model";
 
 export function AccountMenu() {
   const me = useMe();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const menuId = `account-menu-${useId().replaceAll(":", "")}`;
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -42,7 +41,7 @@ export function AccountMenu() {
 
   const finishLogout = () => {
     queryClient.clear();
-    navigate("/login", { replace: true });
+    replaceWithLogin();
   };
 
   const logout = async () => {
