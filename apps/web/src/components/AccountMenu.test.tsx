@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { SessionUser } from "@orosaga/contracts";
 import { ApiError, api } from "../lib/api";
+import { replaceWithLogin } from "../lib/session-navigation";
 import { AccountMenu } from "./AccountMenu";
 
 const user: SessionUser = {
@@ -34,13 +35,16 @@ vi.mock("../lib/api", async (importOriginal) => {
   return { ...actual, api: vi.fn() };
 });
 
+vi.mock("../lib/session-navigation", () => ({
+  replaceWithLogin: vi.fn(),
+}));
+
 function renderMenu(client = new QueryClient()) {
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={["/"]}>
         <Routes>
           <Route path="/" element={<AccountMenu />} />
-          <Route path="/login" element={<p>登录页</p>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -51,6 +55,7 @@ function renderMenu(client = new QueryClient()) {
 describe("AccountMenu", () => {
   beforeEach(() => {
     vi.mocked(api).mockReset();
+    vi.mocked(replaceWithLogin).mockReset();
   });
 
   afterEach(() => {
@@ -99,7 +104,7 @@ describe("AccountMenu", () => {
     fireEvent.click(screen.getByRole("button", { name: "账户：李泽辰" }));
     fireEvent.click(screen.getByRole("button", { name: "退出登录" }));
 
-    expect(await screen.findByText("登录页")).toBeVisible();
+    await waitFor(() => expect(replaceWithLogin).toHaveBeenCalledOnce());
     expect(client.getQueryData(["protected"])).toBeUndefined();
     expect(api).toHaveBeenCalledWith("/api/v1/logout", { method: "POST" });
   });
