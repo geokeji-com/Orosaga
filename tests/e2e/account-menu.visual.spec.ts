@@ -41,6 +41,9 @@ for (const target of [
     await trigger.click();
     await expect(page.getByLabel("当前账户")).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
+    await page.addStyleTag({
+      content: "main { visibility: hidden !important; }",
+    });
     await expect(page).toHaveScreenshot(`${target.name}-account-menu.png`, {
       fullPage: false,
       animations: "disabled",

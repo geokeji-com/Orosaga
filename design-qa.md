@@ -14,6 +14,7 @@
 - Focused desktop header comparison: `/tmp/orosaga-account-qa/desktop-topbar-comparison.png`.
 - Focused mobile header comparison: `/tmp/orosaga-account-qa/mobile-topbar-comparison.png`.
 - Open-state evidence: portal/admin desktop and mobile snapshots in `tests/e2e/account-menu.visual.spec.ts-snapshots/`.
+- Open-state screenshots hide the unrelated `main` content after the disclosure opens, so they compare only the stable topbar, paper background and account popover without masking any part of the account UI.
 - Automated comparison across all 60 portal baselines found no material changes below the 72px/64px header boundary; no baseline had more than 64 pixels with a channel difference above 16 outside the header.
 - Focused regions were required because the new identity trigger, popover, role label and logout action are too small to assess in the downscaled full-page comparison.
 
