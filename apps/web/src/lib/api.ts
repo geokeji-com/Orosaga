@@ -1,3 +1,5 @@
+import { replaceWithLogin } from "./session-navigation";
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -32,6 +34,11 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     credentials: "include",
   });
   if (!response.ok) {
+    if (response.status === 401 && window.location.pathname !== "/login") {
+      replaceWithLogin(
+        `${window.location.pathname}${window.location.search}${window.location.hash}`,
+      );
+    }
     const body = (await response.json().catch(() => ({}))) as {
       code?: string;
       message?: string;

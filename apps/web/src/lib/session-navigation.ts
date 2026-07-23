@@ -1,3 +1,6 @@
-export function replaceWithLogin() {
-  window.location.replace("/login");
+export function replaceWithLogin(returnTo?: string) {
+  const target = returnTo
+    ? `/login?returnTo=${encodeURIComponent(returnTo)}`
+    : "/login";
+  window.location.replace(target);
 }
