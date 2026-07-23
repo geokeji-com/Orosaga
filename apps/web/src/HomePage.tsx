@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ContentPage } from "@orosaga/contracts";
 import { api } from "./lib/api";
 import { Brand, BrandMark } from "./components/Brand";
+import { AccountMenu } from "./components/AccountMenu";
 import {
   ArrowRight,
   BookOpenText,
@@ -317,6 +318,7 @@ function HomePage() {
             <span>搜索山海经</span>
             <kbd>⌘ K</kbd>
           </button>
+          <AccountMenu />
           <button
             className="icon-button menu-button"
             type="button"

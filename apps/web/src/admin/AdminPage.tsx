@@ -8,6 +8,7 @@ import type {
 } from "@orosaga/contracts";
 import { ArrowLeft, History, Save, Settings, Undo2 } from "lucide-react";
 import { useMe } from "../auth/AuthGate";
+import { AccountMenu } from "../components/AccountMenu";
 import { ApiError, api, jsonBody } from "../lib/api";
 import { CompanyContentFields } from "./CompanyContentFields";
 
@@ -101,9 +102,7 @@ export default function AdminPage() {
           <ArrowLeft size={16} /> 返回门户
         </a>
         <strong>Orosaga 内容后台</strong>
-        <span>
-          {me.data?.displayName} · {me.data?.role}
-        </span>
+        <AccountMenu />
       </header>
       <main className="admin-layout">
         <section className="admin-editor">

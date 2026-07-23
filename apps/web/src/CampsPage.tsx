@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { Camp } from "@orosaga/contracts";
 import { Brand } from "./components/Brand";
+import { AccountMenu } from "./components/AccountMenu";
 import { api } from "./lib/api";
 import { distributeCamps } from "./lib/camps";
 
@@ -97,9 +98,12 @@ export default function CampsPage() {
       <header className="topbar camps-topbar">
         <Brand />
         <span className="camps-page-location">同事分享 · 营地地图</span>
-        <a className="camps-back" href="/">
-          <ArrowLeft size={16} /> 返回知识地图
-        </a>
+        <div className="topbar-account-actions">
+          <a className="camps-back" href="/">
+            <ArrowLeft size={16} /> 返回知识地图
+          </a>
+          <AccountMenu />
+        </div>
       </header>
 
       <main className="camps-page">

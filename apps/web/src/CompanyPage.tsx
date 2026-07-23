@@ -29,6 +29,7 @@ import {
   type ContentPage,
 } from "@orosaga/contracts";
 import { Brand, BrandMark } from "./components/Brand";
+import { AccountMenu } from "./components/AccountMenu";
 import { api } from "./lib/api";
 
 const journeyIcons = [SearchCheck, BrainCircuit, Target];
@@ -94,9 +95,12 @@ export default function CompanyPage() {
       <header className="topbar company-topbar">
         <Brand />
         <span className="company-page-location">公司与业务</span>
-        <a className="company-back" href="/">
-          <ArrowLeft size={16} /> 返回知识地图
-        </a>
+        <div className="topbar-account-actions">
+          <a className="company-back" href="/">
+            <ArrowLeft size={16} /> 返回知识地图
+          </a>
+          <AccountMenu />
+        </div>
       </header>
       <main className="company-page">
         <div className="company-layout section-wrap">

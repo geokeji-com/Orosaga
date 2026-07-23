@@ -241,9 +241,6 @@
   .admin-layout {
     grid-template-columns: 1fr;
   }
-  .admin-topbar span {
-    display: none;
-  }
   .admin-source {
     grid-template-columns: 1fr;
   }
