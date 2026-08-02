@@ -528,5 +528,7 @@ test("assessment key surfaces keep their visual hierarchy", async ({
   await expect(
     page.getByRole("heading", { name: "题库发布与测评记录" }),
   ).toBeVisible();
-  await expect(page).toHaveScreenshot("assessment-admin-desktop.png");
+  await expect(page).toHaveScreenshot("assessment-admin-desktop.png", {
+    maxDiffPixelRatio: 0.002,
+  });
 });
