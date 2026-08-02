@@ -17,6 +17,8 @@
     "ops:upload-avatars": "node dist/cli/upload-avatars.js",
     "ops:bootstrap-admins": "node dist/cli/bootstrap-admins.js",
     "ops:migrate-company-content": "node dist/cli/migrate-company-content.js",
+    "ops:import-assessment": "node dist/cli/import-assessment.js",
+    "ops:assessment-retention": "node dist/cli/assessment-retention.js",
     "ops:reconcile": "node dist/cli/reconcile-production.js"
   },
   "prisma": {
@@ -29,8 +31,8 @@
     "@nestjs/platform-express": "11.1.28",
     "@orosaga/config": "1.0.0",
     "@orosaga/contracts": "1.0.0",
-    "@prisma/adapter-pg": "7.9.0",
-    "@prisma/client": "7.9.0",
+    "@prisma/adapter-pg": "7.9.1",
+    "@prisma/client": "7.9.1",
     "ali-oss": "6.23.0",
     "cookie-parser": "1.4.7",
     "dotenv": "17.2.3",
@@ -49,7 +51,7 @@
     "@types/node": "26.1.1",
     "@types/pg": "8.15.5",
     "@types/supertest": "7.2.1",
-    "prisma": "7.9.0",
+    "prisma": "7.9.1",
     "supertest": "7.2.2"
   }
 }

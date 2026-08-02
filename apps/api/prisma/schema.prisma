@@ -28,28 +28,369 @@ enum SyncStatus {
   FAILED
 }
 
+enum AssessmentCycleStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum AssessmentVersionStatus {
+  DRAFT
+  VALIDATED
+  PUBLISHED
+  RETIRED
+}
+
+enum AssessmentSourceReviewStatus {
+  CURRENT
+  REVIEW_REQUIRED
+}
+
+enum AssessmentHumanGateStatus {
+  PENDING_HUMAN
+  APPROVED
+}
+
+enum AssessmentAttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  EXPIRED
+  VOIDED
+}
+
+enum AssessmentReportStatus {
+  PENDING
+  READY
+  FAILED
+}
+
 /// 飞书同步的内部用户。
 model User {
   /// 内部稳定标识。
-  id          String      @id @default(uuid()) @db.Uuid
+  id                  String               @id @default(uuid()) @db.Uuid
   /// 当前飞书应用内的外部标识。
-  openId      String      @unique @map("open_id")
+  openId              String               @unique @map("open_id")
   /// 门户显示名。
-  displayName String      @map("display_name")
+  displayName         String               @map("display_name")
   /// 本地授权角色。
-  role        Role        @default(EMPLOYEE)
+  role                Role                 @default(EMPLOYEE)
   /// 在职状态。
-  status      UserStatus  @default(ACTIVE)
+  status              UserStatus           @default(ACTIVE)
   /// 创建时间。
-  createdAt   DateTime    @default(now()) @map("created_at")
+  createdAt           DateTime             @default(now()) @map("created_at")
   /// 更新时间。
-  updatedAt   DateTime    @updatedAt @map("updated_at")
-  sessions    Session[]
-  profile     EmployeeProfile?
-  auditLogs   AuditLog[]  @relation("AuditActor")
-  revisions   ContentRevision[]
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  sessions            Session[]
+  profile             EmployeeProfile?
+  auditLogs           AuditLog[]           @relation("AuditActor")
+  revisions           ContentRevision[]
+  assessmentAttempts  AssessmentAttempt[]
+  assessmentOverrides AssessmentOverride[]
 
   @@map("users")
+}
+
+/// 员工培训测评定义。
+model Assessment {
+  /// 测评稳定标识。
+  id        String              @id @default(uuid()) @db.Uuid
+  /// 路由和接口使用的稳定键。
+  slug      String              @unique
+  /// 员工可见标题。
+  title     String
+  /// 是否允许展示入口和新建考试。
+  enabled   Boolean             @default(false)
+  /// 创建时间。
+  createdAt DateTime            @default(now()) @map("created_at")
+  /// 更新时间。
+  updatedAt DateTime            @updatedAt @map("updated_at")
+  cycles    AssessmentCycle[]
+  attempts  AssessmentAttempt[]
+
+  @@map("assessments")
+}
+
+/// 测评资格与次数的认证周期。
+model AssessmentCycle {
+  /// 周期稳定标识。
+  id           String                @id @default(uuid()) @db.Uuid
+  /// 所属测评。
+  assessmentId String                @map("assessment_id") @db.Uuid
+  /// 测评内唯一周期键。
+  cycleKey     String                @map("cycle_key")
+  /// 周期开放状态。
+  status       AssessmentCycleStatus @default(ACTIVE)
+  /// 周期内最大有效考试次数。
+  maxAttempts  Int                   @default(3) @map("max_attempts")
+  /// 上海自然日内最大考试次数。
+  dailyLimit   Int                   @default(1) @map("daily_limit")
+  /// 周期开始时间。
+  startsAt     DateTime              @map("starts_at")
+  /// 周期结束时间。
+  endsAt       DateTime?             @map("ends_at")
+  /// 创建时间。
+  createdAt    DateTime              @default(now()) @map("created_at")
+  assessment   Assessment            @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  versions     AssessmentVersion[]
+  attempts     AssessmentAttempt[]
+
+  @@unique([assessmentId, cycleKey])
+  @@index([assessmentId, status, startsAt])
+  @@map("assessment_cycles")
+}
+
+/// 经过校验并可冻结发布的题库版本。
+model AssessmentVersion {
+  /// 版本稳定标识。
+  id                  String                       @id @default(uuid()) @db.Uuid
+  /// 所属资格周期。
+  cycleId             String                       @map("cycle_id") @db.Uuid
+  /// 周期内版本号。
+  version             String
+  /// 发布状态。
+  status              AssessmentVersionStatus      @default(DRAFT)
+  /// 来源是否仍适用于新考试。
+  sourceReviewStatus  AssessmentSourceReviewStatus @default(CURRENT) @map("source_review_status")
+  /// 内容人工复核门禁。
+  contentReviewStatus AssessmentHumanGateStatus    @default(PENDING_HUMAN) @map("content_review_status")
+  /// Angoff 定标门禁。
+  angoffStatus        AssessmentHumanGateStatus    @default(PENDING_HUMAN) @map("angoff_status")
+  /// 试测分析门禁。
+  pilotStatus         AssessmentHumanGateStatus    @default(PENDING_HUMAN) @map("pilot_status")
+  /// 上游资料提交。
+  sourceCommit        String                       @map("source_commit")
+  /// 上游数据版本。
+  datasetVersion      String                       @map("dataset_version")
+  /// 公司内容哈希。
+  businessHash        String                       @map("business_hash")
+  /// 工作流内容哈希。
+  workflowHash        String                       @map("workflow_hash")
+  /// 私有题库包内容哈希。
+  contentHash         String                       @map("content_hash")
+  /// 题目总数。
+  questionCount       Int                          @default(50) @map("question_count")
+  /// 限时分钟数。
+  durationMinutes     Int                          @default(30) @map("duration_minutes")
+  /// 通过分数。
+  passScore           Int                          @default(80) @map("pass_score")
+  /// 来源复核到期时间。
+  reviewDueAt         DateTime?                    @map("review_due_at")
+  /// 发布时间。
+  publishedAt         DateTime?                    @map("published_at")
+  /// 创建时间。
+  createdAt           DateTime                     @default(now()) @map("created_at")
+  cycle               AssessmentCycle              @relation(fields: [cycleId], references: [id], onDelete: Restrict)
+  questions           AssessmentQuestion[]
+  attempts            AssessmentAttempt[]
+
+  @@unique([cycleId, version])
+  @@index([cycleId, status, publishedAt])
+  @@map("assessment_versions")
+}
+
+/// 考试前可见的题面、分类和诊断标签。
+model AssessmentQuestion {
+  /// 题目稳定标识。
+  id                 String                 @id @default(uuid()) @db.Uuid
+  /// 所属题库版本。
+  versionId          String                 @map("version_id") @db.Uuid
+  /// 题库版本内稳定题号。
+  stableKey          String                 @map("stable_key")
+  /// 固定基础顺序。
+  position           Int
+  /// 主诊断维度。
+  primaryDimension   String                 @map("primary_dimension")
+  /// 主要证据类型。
+  sourceType         String                 @map("source_type")
+  /// 难度层级。
+  difficulty         String
+  /// 论文或业务主题。
+  topic              String
+  /// 题干。
+  stem               String
+  /// 四个公开选项。
+  options            Json
+  /// 交付阶段标签。
+  deliveryStages     Json                   @map("delivery_stages")
+  /// 业务重要度。
+  businessImportance Int                    @default(3) @map("business_importance")
+  /// 创建时间。
+  createdAt          DateTime               @default(now()) @map("created_at")
+  version            AssessmentVersion      @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  key                AssessmentQuestionKey?
+  sources            QuestionSource[]
+  answers            AssessmentAnswer[]
+
+  @@unique([versionId, stableKey])
+  @@unique([versionId, position])
+  @@index([versionId, primaryDimension])
+  @@map("assessment_questions")
+}
+
+/// 与公开题面隔离的标准答案和完整解析。
+model AssessmentQuestionKey {
+  /// 题目标识，同时作为主键。
+  questionId          String             @id @map("question_id") @db.Uuid
+  /// 标准答案选项。
+  correctOptionId     String             @map("correct_option_id")
+  /// 各选项解析。
+  optionRationales    Json               @map("option_rationales")
+  /// 各选项误区编码。
+  misconceptions      Json
+  /// 误区显示名称。
+  misconceptionLabels Json               @map("misconception_labels")
+  /// 核心解析。
+  coreRationale       String             @map("core_rationale")
+  /// 推理步骤。
+  reasoningSteps      Json               @map("reasoning_steps")
+  /// 业务应用说明。
+  businessApplication String             @map("business_application")
+  /// 建议学习路径。
+  learningPaths       Json               @map("learning_paths")
+  question            AssessmentQuestion @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@map("assessment_question_keys")
+}
+
+/// 每道题的来源定位信息。
+model QuestionSource {
+  /// 来源关系标识。
+  id         String             @id @default(uuid()) @db.Uuid
+  /// 所属题目。
+  questionId String             @map("question_id") @db.Uuid
+  /// 证据矩阵中的来源编号。
+  sourceId   String             @map("source_id")
+  /// 可选数据查询编号。
+  queryId    String?            @map("query_id")
+  question   AssessmentQuestion @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([questionId, sourceId])
+  @@index([sourceId])
+  @@map("assessment_question_sources")
+}
+
+/// 一次不可变的员工考试。
+model AssessmentAttempt {
+  /// 考试稳定标识。
+  id             String                  @id @default(uuid()) @db.Uuid
+  /// 所属员工。
+  userId         String                  @map("user_id") @db.Uuid
+  /// 所属测评。
+  assessmentId   String                  @map("assessment_id") @db.Uuid
+  /// 所属认证周期。
+  cycleId        String                  @map("cycle_id") @db.Uuid
+  /// 冻结题库版本。
+  versionId      String                  @map("version_id") @db.Uuid
+  /// 客户端创建幂等键。
+  idempotencyKey String                  @map("idempotency_key")
+  /// 周期内考试序号。
+  attemptNumber  Int                     @map("attempt_number")
+  /// 上海自然日配额日期。
+  quotaDate      DateTime                @map("quota_date") @db.Date
+  /// 考试状态。
+  status         AssessmentAttemptStatus @default(IN_PROGRESS)
+  /// 题目和选项顺序快照，不含答案。
+  manifest       Json
+  /// 考试开始时间。
+  startedAt      DateTime                @default(now()) @map("started_at")
+  /// 服务端截止时间。
+  deadlineAt     DateTime                @map("deadline_at")
+  /// 提交或超时结算时间。
+  submittedAt    DateTime?               @map("submitted_at")
+  /// 终态分数。
+  score          Int?
+  /// 已保存答案数量，详细答案清理后继续保留。
+  answeredCount  Int                     @default(0) @map("answered_count")
+  /// 创建时间。
+  createdAt      DateTime                @default(now()) @map("created_at")
+  /// 更新时间。
+  updatedAt      DateTime                @updatedAt @map("updated_at")
+  user           User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  assessment     Assessment              @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  cycle          AssessmentCycle         @relation(fields: [cycleId], references: [id], onDelete: Restrict)
+  version        AssessmentVersion       @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  answers        AssessmentAnswer[]
+  report         AssessmentReport?
+  override       AssessmentOverride?
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, assessmentId, createdAt])
+  @@index([cycleId, quotaDate, status])
+  @@map("assessment_attempts")
+}
+
+/// 考试中的最终答案、修改次数与辅助耗时。
+model AssessmentAnswer {
+  /// 答案稳定标识。
+  id               String             @id @default(uuid()) @db.Uuid
+  /// 所属考试。
+  attemptId        String             @map("attempt_id") @db.Uuid
+  /// 所属题目。
+  questionId       String             @map("question_id") @db.Uuid
+  /// 首次选择。
+  firstOptionId    String             @map("first_option_id")
+  /// 当前选择。
+  selectedOptionId String             @map("selected_option_id")
+  /// 本次展示的选项顺序。
+  displayOrder     Json               @map("display_order")
+  /// 乐观锁版本。
+  revision         Int                @default(1)
+  /// 选择变更次数。
+  changeCount      Int                @default(0) @map("change_count")
+  /// 页面活跃时长，单位毫秒。
+  activeDurationMs Int                @default(0) @map("active_duration_ms")
+  /// 最近作答时间。
+  answeredAt       DateTime           @default(now()) @map("answered_at")
+  /// 终态正确性。
+  isCorrect        Boolean?           @map("is_correct")
+  attempt          AssessmentAttempt  @relation(fields: [attemptId], references: [id], onDelete: Restrict)
+  question         AssessmentQuestion @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([attemptId, questionId])
+  @@index([questionId, isCorrect])
+  @@map("assessment_answers")
+}
+
+/// 固定版本的个人诊断报告。
+model AssessmentReport {
+  /// 报告稳定标识。
+  id            String                 @id @default(uuid()) @db.Uuid
+  /// 一次考试仅有一份报告。
+  attemptId     String                 @unique @map("attempt_id") @db.Uuid
+  /// 报告算法与模板版本。
+  reportVersion String                 @map("report_version")
+  /// 生成状态。
+  status        AssessmentReportStatus @default(PENDING)
+  /// 可复算的结构化报告快照。
+  payload       Json?
+  /// 报告生成完成时间。
+  generatedAt   DateTime?              @map("generated_at")
+  /// 安全的失败代码。
+  failureCode   String?                @map("failure_code")
+  /// 创建时间。
+  createdAt     DateTime               @default(now()) @map("created_at")
+  attempt       AssessmentAttempt      @relation(fields: [attemptId], references: [id], onDelete: Restrict)
+
+  @@map("assessment_reports")
+}
+
+/// 管理员对异常考试的作废记录。
+model AssessmentOverride {
+  /// 作废记录标识。
+  id         String            @id @default(uuid()) @db.Uuid
+  /// 每次考试最多一条作废记录。
+  attemptId  String            @unique @map("attempt_id") @db.Uuid
+  /// 管理员标识。
+  actorId    String            @map("actor_id") @db.Uuid
+  /// 受控原因编码。
+  reasonCode String            @map("reason_code")
+  /// 详细原因。
+  reason     String
+  /// 创建时间。
+  createdAt  DateTime          @default(now()) @map("created_at")
+  attempt    AssessmentAttempt @relation(fields: [attemptId], references: [id], onDelete: Restrict)
+  actor      User              @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@map("assessment_overrides")
 }
 
 /// 服务端登录会话，只保存摘要。
@@ -79,19 +420,19 @@ model Session {
 /// 飞书部门镜像。
 model Department {
   /// 内部稳定标识。
-  id         String    @id @default(uuid()) @db.Uuid
+  id         String            @id @default(uuid()) @db.Uuid
   /// 飞书部门标识。
-  externalId String    @unique @map("external_id")
+  externalId String            @unique @map("external_id")
   /// 部门名称。
   name       String
   /// 父部门内部标识。
-  parentId   String?   @map("parent_id") @db.Uuid
+  parentId   String?           @map("parent_id") @db.Uuid
   /// 是否仍有效。
-  active     Boolean   @default(true)
+  active     Boolean           @default(true)
   /// 同步更新时间。
-  updatedAt  DateTime  @updatedAt @map("updated_at")
-  parent     Department?  @relation("DepartmentTree", fields: [parentId], references: [id])
-  children   Department[] @relation("DepartmentTree")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+  parent     Department?       @relation("DepartmentTree", fields: [parentId], references: [id])
+  children   Department[]      @relation("DepartmentTree")
   profiles   EmployeeProfile[]
 
   @@map("departments")
@@ -100,30 +441,30 @@ model Department {
 /// 门户维护的员工扩展资料。
 model EmployeeProfile {
   /// 内部稳定标识。
-  id             String      @id @default(uuid()) @db.Uuid
+  id            String      @id @default(uuid()) @db.Uuid
   /// 一对一用户标识。
-  userId         String      @unique @map("user_id") @db.Uuid
+  userId        String      @unique @map("user_id") @db.Uuid
   /// 当前所属部门。
-  departmentId   String?     @map("department_id") @db.Uuid
+  departmentId  String?     @map("department_id") @db.Uuid
   /// 门户简介。
-  bio            String      @default("")
+  bio           String      @default("")
   /// 门户展示职能称谓。
-  portalTitle    String      @default("") @map("portal_title")
+  portalTitle   String      @default("") @map("portal_title")
   /// 可咨询事项列表。
-  consultTopics  Json        @default("[]") @map("consult_topics")
+  consultTopics Json        @default("[]") @map("consult_topics")
   /// 协作标签列表。
-  tags           Json        @default("[]")
+  tags          Json        @default("[]")
   /// 私有头像资产标识。
-  avatarAssetId  String?     @map("avatar_asset_id") @db.Uuid
+  avatarAssetId String?     @map("avatar_asset_id") @db.Uuid
   /// 是否在组织页展示。
-  visible        Boolean     @default(true)
+  visible       Boolean     @default(true)
   /// 扩展资料乐观锁版本。
-  version        Int         @default(0)
+  version       Int         @default(0)
   /// 更新时间。
-  updatedAt      DateTime    @updatedAt @map("updated_at")
-  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  department     Department? @relation(fields: [departmentId], references: [id])
-  avatarAsset    Asset?      @relation(fields: [avatarAssetId], references: [id])
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department    Department? @relation(fields: [departmentId], references: [id])
+  avatarAsset   Asset?      @relation(fields: [avatarAssetId], references: [id])
 
   @@map("employee_profiles")
 }
@@ -131,19 +472,19 @@ model EmployeeProfile {
 /// 可发布的公司与首页内容。
 model ContentPage {
   /// 页面稳定标识。
-  id                String             @id @default(uuid()) @db.Uuid
+  id                String            @id @default(uuid()) @db.Uuid
   /// 路由唯一键。
-  slug              String             @unique
+  slug              String            @unique
   /// 受控页面类型。
-  pageType          String             @map("page_type")
+  pageType          String            @map("page_type")
   /// 当前不可变版本标识。
-  currentRevisionId String?            @unique @map("current_revision_id") @db.Uuid
+  currentRevisionId String?           @unique @map("current_revision_id") @db.Uuid
   /// 乐观锁版本号。
-  version           Int                @default(0)
+  version           Int               @default(0)
   /// 更新时间。
-  updatedAt         DateTime           @updatedAt @map("updated_at")
-  currentRevision   ContentRevision?   @relation("CurrentRevision", fields: [currentRevisionId], references: [id])
-  revisions         ContentRevision[]  @relation("PageRevisions")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  currentRevision   ContentRevision?  @relation("CurrentRevision", fields: [currentRevisionId], references: [id])
+  revisions         ContentRevision[] @relation("PageRevisions")
 
   @@map("content_pages")
 }
@@ -177,19 +518,19 @@ model ContentRevision {
 /// 受控导航树节点。
 model NavigationItem {
   /// 导航标识。
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String           @id @default(uuid()) @db.Uuid
   /// 父节点标识。
-  parentId  String?  @map("parent_id") @db.Uuid
+  parentId  String?          @map("parent_id") @db.Uuid
   /// 显示标题。
   label     String
   /// 站内路由。
   route     String
   /// 图标白名单键。
-  iconKey   String   @map("icon_key")
+  iconKey   String           @map("icon_key")
   /// 同层排序值。
-  sortOrder Int      @default(0) @map("sort_order")
+  sortOrder Int              @default(0) @map("sort_order")
   /// 是否启用。
-  enabled   Boolean  @default(true)
+  enabled   Boolean          @default(true)
   parent    NavigationItem?  @relation("NavigationTree", fields: [parentId], references: [id])
   children  NavigationItem[] @relation("NavigationTree")
 
@@ -199,16 +540,16 @@ model NavigationItem {
 /// 可发布工作流定义。
 model WorkflowDefinition {
   /// 工作流标识。
-  id          String          @id @default(uuid()) @db.Uuid
+  id        String          @id @default(uuid()) @db.Uuid
   /// 路由唯一键。
-  slug        String          @unique
+  slug      String          @unique
   /// 工作流标题。
-  title       String
+  title     String
   /// 当前版本号。
-  version     Int             @default(1)
+  version   Int             @default(1)
   /// 更新时间。
-  updatedAt   DateTime        @updatedAt @map("updated_at")
-  stages      WorkflowStage[]
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  stages    WorkflowStage[]
 
   @@map("workflow_definitions")
 }
@@ -216,19 +557,19 @@ model WorkflowDefinition {
 /// 工作流阶段及完成标准。
 model WorkflowStage {
   /// 阶段标识。
-  id           String             @id @default(uuid()) @db.Uuid
+  id          String             @id @default(uuid()) @db.Uuid
   /// 所属工作流。
-  workflowId   String             @map("workflow_id") @db.Uuid
+  workflowId  String             @map("workflow_id") @db.Uuid
   /// 阶段标题。
-  title        String
+  title       String
   /// 阶段说明。
-  description  String             @default("")
+  description String             @default("")
   /// 图标白名单键。
-  iconKey      String             @map("icon_key")
+  iconKey     String             @map("icon_key")
   /// 同层排序值。
-  sortOrder    Int                @map("sort_order")
-  workflow     WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  items        WorkflowItem[]
+  sortOrder   Int                @map("sort_order")
+  workflow    WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  items       WorkflowItem[]
 
   @@unique([workflowId, sortOrder])
   @@map("workflow_stages")
@@ -270,26 +611,26 @@ model SystemLinkGroup {
 /// 经过域名白名单治理的外部系统入口。
 model SystemLink {
   /// 入口标识。
-  id           String          @id @default(uuid()) @db.Uuid
+  id          String          @id @default(uuid()) @db.Uuid
   /// 所属分组。
-  groupId      String          @map("group_id") @db.Uuid
+  groupId     String          @map("group_id") @db.Uuid
   /// 显示标题。
-  title        String
+  title       String
   /// 入口说明。
-  description  String          @default("")
+  description String          @default("")
   /// 仅允许 HTTPS 的目标地址。
-  url          String
+  url         String
   /// 目标环境。
-  environment  String          @default("production")
+  environment String          @default("production")
   /// 最低可见角色。
-  minimumRole  Role            @default(EMPLOYEE) @map("minimum_role")
+  minimumRole Role            @default(EMPLOYEE) @map("minimum_role")
   /// 图标白名单键。
-  iconKey      String          @map("icon_key")
+  iconKey     String          @map("icon_key")
   /// 是否启用。
-  enabled      Boolean         @default(false)
+  enabled     Boolean         @default(false)
   /// 同层排序值。
-  sortOrder    Int             @map("sort_order")
-  group        SystemLinkGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sortOrder   Int             @map("sort_order")
+  group       SystemLinkGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@map("system_links")
 }
@@ -297,19 +638,19 @@ model SystemLink {
 /// 私有 OSS 对象元数据。
 model Asset {
   /// 资产标识。
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String            @id @default(uuid()) @db.Uuid
   /// 私有对象键。
-  objectKey String   @unique @map("object_key")
+  objectKey String            @unique @map("object_key")
   /// MIME 类型。
-  mimeType  String   @map("mime_type")
+  mimeType  String            @map("mime_type")
   /// 内容哈希。
   sha256    String
   /// 字节大小。
   size      Int
   /// 所有者用户。
-  ownerId   String?  @map("owner_id") @db.Uuid
+  ownerId   String?           @map("owner_id") @db.Uuid
   /// 创建时间。
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime          @default(now()) @map("created_at")
   profiles  EmployeeProfile[]
 
   @@map("assets")
@@ -318,23 +659,23 @@ model Asset {
 /// 飞书知识空间同步配置。
 model KnowledgeSource {
   /// 来源标识。
-  id             String    @id @default(uuid()) @db.Uuid
+  id             String     @id @default(uuid()) @db.Uuid
   /// 配置名称。
   name           String
   /// 飞书知识空间标识。
-  spaceId        String    @map("space_id")
+  spaceId        String     @map("space_id")
   /// 根节点 token。
-  rootNodeToken  String    @map("root_node_token")
+  rootNodeToken  String     @map("root_node_token")
   /// 明确排除的节点 token 列表。
-  excludedTokens Json      @default("[]") @map("excluded_tokens")
+  excludedTokens Json       @default("[]") @map("excluded_tokens")
   /// 同步周期分钟数。
-  intervalMins   Int       @default(30) @map("interval_mins")
+  intervalMins   Int        @default(30) @map("interval_mins")
   /// 是否启用。
-  enabled        Boolean   @default(true)
+  enabled        Boolean    @default(true)
   /// 配置乐观锁版本。
-  version        Int       @default(1)
+  version        Int        @default(1)
   /// 最近成功同步时间。
-  lastSuccessAt  DateTime? @map("last_success_at")
+  lastSuccessAt  DateTime?  @map("last_success_at")
   nodes          WikiNode[]
   camps          Camp[]
 
@@ -398,27 +739,27 @@ model Camp {
 /// 组织或 Wiki 同步运行记录。
 model SyncRun {
   /// 运行标识。
-  id         String     @id @default(uuid()) @db.Uuid
+  id          String     @id @default(uuid()) @db.Uuid
   /// 同步类别。
-  kind       SyncKind
+  kind        SyncKind
   /// 当前状态。
-  status     SyncStatus
+  status      SyncStatus
   /// 发现数量。
-  discovered Int        @default(0)
+  discovered  Int        @default(0)
   /// 新增数量。
-  inserted   Int        @default(0)
+  inserted    Int        @default(0)
   /// 更新数量。
-  updated    Int        @default(0)
+  updated     Int        @default(0)
   /// 软删数量。
-  softDeleted Int       @default(0) @map("soft_deleted")
+  softDeleted Int        @default(0) @map("soft_deleted")
   /// 跳过数量。
-  skipped    Int        @default(0)
+  skipped     Int        @default(0)
   /// 错误摘要。
-  error      String?
+  error       String?
   /// 开始时间。
-  startedAt  DateTime   @default(now()) @map("started_at")
+  startedAt   DateTime   @default(now()) @map("started_at")
   /// 结束时间。
-  finishedAt DateTime?  @map("finished_at")
+  finishedAt  DateTime?  @map("finished_at")
 
   @@index([kind, startedAt])
   @@map("sync_runs")

@@ -31,6 +31,7 @@ jobs:
     env:
       NODE_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/orosaga_test
+      ASSESSMENT_INTEGRATION_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/orosaga_test
       PUBLIC_ORIGIN: http://127.0.0.1:8080
       SESSION_SECRET: ci-only-session-secret-at-least-32-chars
       FEISHU_APP_ID: ci-placeholder

@@ -134,7 +134,7 @@ body::before {
 
 kbd {
   padding: 2px 5px;
-  color: #7c837f;
+  color: #5f6763;
   border: 1px solid rgba(23, 27, 25, 0.12);
   border-radius: 4px;
   background: #f4f5f2;
@@ -822,7 +822,7 @@ kbd {
   color: currentColor;
   font-size: 11px;
   font-weight: 700;
-  opacity: 0.65;
+  opacity: 0.9;
 }
 
 .atlas-card h3 {
@@ -837,7 +837,7 @@ kbd {
   color: currentColor;
   font-size: 13px;
   line-height: 1.75;
-  opacity: 0.7;
+  opacity: 0.9;
 }
 
 .card-meta {
@@ -846,7 +846,7 @@ kbd {
   color: currentColor;
   font-size: 11px;
   font-weight: 600;
-  opacity: 0.52;
+  opacity: 0.9;
 }
 
 .tint-mint {
@@ -872,6 +872,15 @@ kbd {
 .tint-ink {
   color: #f2f5f2;
   background: #243934;
+}
+.tint-ink .card-eyebrow {
+  opacity: 0.65;
+}
+.tint-ink p {
+  opacity: 0.7;
+}
+.tint-ink .card-meta {
+  opacity: 0.6;
 }
 
 .journey-band {
@@ -982,7 +991,7 @@ kbd {
 }
 
 .trail small {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.58);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -1495,7 +1504,7 @@ kbd {
 }
 
 .update-list time {
-  color: #6c7570;
+  color: #5f6964;
   font-family: var(--serif);
   font-size: 16px;
 }

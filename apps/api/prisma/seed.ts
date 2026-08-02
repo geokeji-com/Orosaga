@@ -341,6 +341,18 @@ async function seedWorkflow() {
   }
 }
 
+async function seedAssessmentDefinition() {
+  await prisma.assessment.upsert({
+    where: { slug: "geo-foundations" },
+    create: {
+      slug: "geo-foundations",
+      title: "GEO 基础能力测评",
+      enabled: false,
+    },
+    update: {},
+  });
+}
+
 async function seedResourceBaselines(actorId: string) {
   const links = await prisma.systemLink.findMany({ include: { group: true } });
   for (const link of links) {
@@ -440,6 +452,7 @@ async function main() {
   await seedSystemLinks();
   await seedCamps();
   await seedWorkflow();
+  await seedAssessmentDefinition();
   await seedResourceBaselines(admin.id);
   const [employees, assets, campCount, links, stages] = await Promise.all([
     prisma.employeeProfile.count(),

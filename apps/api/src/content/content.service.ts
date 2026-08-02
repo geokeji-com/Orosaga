@@ -111,6 +111,14 @@ export class ContentService {
         where: { id },
         data: { version: nextVersion, currentRevisionId: revision.id },
       });
+      if (page.slug === "company")
+        await tx.assessmentVersion.updateMany({
+          where: { status: { not: "RETIRED" } },
+          data: {
+            sourceReviewStatus: "REVIEW_REQUIRED",
+            contentReviewStatus: "PENDING_HUMAN",
+          },
+        });
       await tx.auditLog.create({
         data: {
           actorId,
