@@ -44,6 +44,8 @@ jobs:
         with:
           node-version: 24.17.0
           cache: npm
+      - name: Use repository npm version
+        run: npm install --global npm@11.6.2
       - run: npm ci
       - run: npm run db:generate
       - run: npm run db:migrate
@@ -70,7 +72,7 @@ jobs:
       - run: npm run check:sql-comments
       - run: npm run check:bundle
       - run: npm run check:security
-      - run: npm audit --audit-level=high
+      - run: npm run check:audit
       - run: npm sbom --sbom-format=cyclonedx > orosaga-sbom.json
       - uses: actions/upload-artifact@v4
         with:
