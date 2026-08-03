@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ContentPage } from "@orosaga/contracts";
 import { api } from "./lib/api";
-import { assessmentApi } from "./lib/assessment-api";
+import { courseApi } from "./lib/course-api";
 import { Brand, BrandMark } from "./components/Brand";
 import { AccountMenu } from "./components/AccountMenu";
 import {
@@ -74,10 +74,10 @@ const atlasItems: AtlasItem[] = [
   },
   {
     id: "village",
-    eyebrow: "第一次登山",
-    title: "新手村",
-    description: "按入职天数推进的学习路线、任务清单与必读文档。",
-    meta: "建议从这里开始",
+    eyebrow: "系统化学习",
+    title: "学习中心",
+    description: "通过业务故事、方法模型和即时练习，逐步掌握 GEO 交付方法。",
+    meta: "20 节实战课程",
     icon: GraduationCap,
     tint: "amber",
   },
@@ -174,9 +174,9 @@ function HomePage() {
     queryKey: ["page", "home"],
     queryFn: () => api<ContentPage>("/api/v1/pages/home"),
   });
-  const assessment = useQuery({
-    queryKey: ["assessment", "geo-foundations"],
-    queryFn: assessmentApi.overview,
+  const courses = useQuery({
+    queryKey: ["courses"],
+    queryFn: courseApi.list,
     retry: false,
   });
   const search = useQuery({
@@ -289,72 +289,20 @@ function HomePage() {
     homeContent && "summary" in homeContent
       ? homeContent.summary
       : "一张持续生长的公司知识地图。认识我们为何出发，也找到你接下来要走的路。";
-  const assessmentTrail = (() => {
-    const data = assessment.data;
-    if (assessment.isPending)
-      return {
-        label: "Loading",
-        detail: "正在确认 GEO 能力测评的开放状态",
-        actionable: false,
-      };
-    if (assessment.isError || !data)
-      return {
-        label: "Unavailable",
-        detail: "测评服务暂时不可用，请稍后再试",
-        actionable: false,
-      };
-    if (data.mode === "PILOT" && data.status === "AVAILABLE")
-      return {
-        label: "Pilot",
-        detail: "你已获邀参与 GEO 题库试测，不计入正式认证",
-        actionable: true,
-      };
-    if (data.mode === "PILOT")
-      return {
-        label: "Pilot",
-        detail: "查看受控试测进度与结果；本次不计入正式认证",
-        actionable: true,
-      };
-    if (data.status === "IN_PROGRESS")
-      return {
-        label: "Continue",
-        detail: "本次测评进行中，点击继续答题",
-        actionable: true,
-      };
-    if (data.passed)
-      return {
-        label: "Passed",
-        detail: `已通过 · 最好成绩 ${data.bestScore} 分`,
-        actionable: true,
-      };
-    if (data.status === "AVAILABLE")
-      return {
-        label: "Ready",
-        detail: `50 道题 · 剩余 ${data.attemptsRemaining} 次机会`,
-        actionable: true,
-      };
-    if (data.status === "DAILY_LIMIT_REACHED")
-      return {
-        label: "Tomorrow",
-        detail: "今日机会已使用，明天可再次参加",
-        actionable: true,
-      };
-    if (data.status === "ATTEMPT_LIMIT_REACHED")
-      return {
-        label: "Complete",
-        detail: "本周期 3 次测评机会已完成",
-        actionable: true,
-      };
-    if (data.status === "REVIEW_REQUIRED")
-      return {
-        label: "Review",
-        detail: "题库证据复核中，完成后重新开放",
-        actionable: false,
-      };
+  const assessmentTrail = {
+    label: "Preparing",
+    detail: "正式 50 题能力测评正在筹备，课程练习不计入认证。",
+    actionable: false,
+  };
+  const courseTrail = (() => {
+    const enrollment = courses.data?.[0]?.enrollment;
+    if (!enrollment)
+      return { label: "Start", detail: "20 节课，从业务认知走到项目运营" };
+    if (enrollment.status === "COMPLETED")
+      return { label: "Complete", detail: "课程已完成，可以随时回看" };
     return {
-      label: "Pending",
-      detail: "题库完成发布后开放测评",
-      actionable: false,
+      label: `${enrollment.progressPercent}%`,
+      detail: `已完成 ${enrollment.completedLessons} / 20 节，继续学习`,
     };
   })();
 
@@ -370,8 +318,8 @@ function HomePage() {
           <a href="#atlas" onClick={() => setMenuOpen(false)}>
             知识地图
           </a>
-          <a href="#journey" onClick={() => setMenuOpen(false)}>
-            新手村
+          <a href="/courses" onClick={() => setMenuOpen(false)}>
+            学习中心
           </a>
           <a href="/workflow" onClick={() => setMenuOpen(false)}>
             工作流
@@ -426,8 +374,8 @@ function HomePage() {
               </h1>
               <p>{homeSummary}</p>
               <div className="hero-actions">
-                <a className="primary-button" href="#journey">
-                  开始新手旅程 <ArrowRight size={17} />
+                <a className="primary-button" href="/courses">
+                  进入学习中心 <ArrowRight size={17} />
                 </a>
                 <a className="text-link" href="#atlas">
                   浏览知识地图 <ChevronRight size={16} />
@@ -548,7 +496,7 @@ function HomePage() {
                         : item.id === "systems"
                           ? "/systems"
                           : item.id === "village"
-                            ? "#journey"
+                            ? "/courses"
                             : item.id === "workflow"
                               ? "/workflow"
                               : item.id === "voices"
@@ -655,6 +603,21 @@ function HomePage() {
               </li>
               <li>
                 <span className="trail-number">05</span>
+                <div className="trail-copy">
+                  <small>{courseTrail.label}</small>
+                  <strong>完成 GEO 实战训练营</strong>
+                  <p>{courseTrail.detail}</p>
+                </div>
+                <a
+                  className="trail-action"
+                  href="/courses"
+                  aria-label="进入 GEO 实战训练营"
+                >
+                  <ChevronRight size={19} />
+                </a>
+              </li>
+              <li>
+                <span className="trail-number">06</span>
                 <div className="trail-copy">
                   <small>{assessmentTrail.label}</small>
                   <strong>完成 GEO 能力测评</strong>

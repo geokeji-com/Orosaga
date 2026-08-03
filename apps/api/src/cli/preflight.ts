@@ -7,6 +7,9 @@ async function main() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error("DATABASE_URL is required");
   const requireSchema = process.argv.includes("--require-schema");
+  const requireConnectionCapacity = process.argv.includes(
+    "--require-connection-capacity",
+  );
   let url: URL;
   try {
     url = new URL(databaseUrl);
@@ -59,7 +62,10 @@ async function main() {
     return;
   }
 
-  const client = new Client({ connectionString: databaseUrl });
+  const client = new Client({
+    connectionString: databaseUrl,
+    connectionTimeoutMillis: 5_000,
+  });
   await client.connect();
   try {
     const result = await client.query<{
@@ -112,6 +118,31 @@ async function main() {
         detail: String(row.trgm_available),
       },
     );
+    const capacity = await client.query<{
+      maxConnections: number;
+      superuserReserved: number;
+      reserved: number;
+      clientConnections: number;
+    }>(`
+      SELECT
+        current_setting('max_connections')::int AS "maxConnections",
+        current_setting('superuser_reserved_connections')::int AS "superuserReserved",
+        COALESCE(current_setting('reserved_connections', true), '0')::int AS "reserved",
+        count(*) FILTER (WHERE backend_type = 'client backend')::int AS "clientConnections"
+      FROM pg_stat_activity
+    `);
+    const capacityRow = capacity.rows[0];
+    if (!capacityRow) throw new Error("RDS capacity preflight returned no row");
+    const available =
+      capacityRow.maxConnections -
+      capacityRow.superuserReserved -
+      capacityRow.reserved -
+      capacityRow.clientConnections;
+    checks.push({
+      name: "database-connection-capacity",
+      ok: !requireConnectionCapacity || available >= 64,
+      detail: `${available} normal connection slot(s) available`,
+    });
   } finally {
     await client.end();
   }

@@ -69,6 +69,11 @@ enum AssessmentReportStatus {
   FAILED
 }
 
+enum CourseEnrollmentStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
 /// 飞书同步的内部用户。
 model User {
   /// 内部稳定标识。
@@ -94,8 +99,111 @@ model User {
   pilotParticipations AssessmentPilotParticipant[] @relation("AssessmentPilotParticipantUser")
   pilotGrants         AssessmentPilotParticipant[] @relation("AssessmentPilotParticipantGrantedBy")
   pilotRevocations    AssessmentPilotParticipant[] @relation("AssessmentPilotParticipantRevokedBy")
+  courseEnrollments   CourseEnrollment[]
 
   @@map("users")
+}
+
+/// 员工在固定课程版本中的学习注册。
+model CourseEnrollment {
+  /// 注册标识。
+  id             String                  @id @default(uuid()) @db.Uuid
+  /// 所属员工。
+  userId         String                  @map("user_id") @db.Uuid
+  /// 课程稳定路由键。
+  courseSlug     String                  @map("course_slug")
+  /// 开始学习时固定的课程版本。
+  courseVersion  String                  @map("course_version")
+  /// 当前学习状态。
+  status         CourseEnrollmentStatus  @default(IN_PROGRESS)
+  /// 幂等创建键。
+  idempotencyKey String                  @map("idempotency_key")
+  /// 开始时间。
+  startedAt      DateTime                @default(now()) @map("started_at")
+  /// 最近更新时间。
+  updatedAt      DateTime                @updatedAt @map("updated_at")
+  /// 结业时间。
+  completedAt    DateTime?               @map("completed_at")
+  user           User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  steps          CourseStepProgress[]
+  attempts       CourseExerciseAttempt[]
+  feedback       CourseFeedback?
+
+  @@unique([userId, courseSlug, courseVersion])
+  @@unique([userId, idempotencyKey])
+  @@index([userId, status, updatedAt])
+  @@map("course_enrollments")
+}
+
+/// 课程步骤的幂等完成记录。
+model CourseStepProgress {
+  /// 记录标识。
+  id           String           @id @default(uuid()) @db.Uuid
+  /// 所属学习注册。
+  enrollmentId String           @map("enrollment_id") @db.Uuid
+  /// 跨课程版本稳定的步骤键。
+  stepKey      String           @map("step_key")
+  /// 客户端操作幂等键。
+  operationId  String           @map("operation_id")
+  /// 完成时间。
+  completedAt  DateTime         @default(now()) @map("completed_at")
+  enrollment   CourseEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, stepKey])
+  @@unique([enrollmentId, operationId])
+  @@index([enrollmentId, completedAt])
+  @@map("course_step_progress")
+}
+
+/// 课程练习的每次结构化作答。
+model CourseExerciseAttempt {
+  /// 作答标识。
+  id               String           @id @default(uuid()) @db.Uuid
+  /// 所属学习注册。
+  enrollmentId     String           @map("enrollment_id") @db.Uuid
+  /// 练习稳定键。
+  exerciseKey      String           @map("exercise_key")
+  /// 学员选择。
+  selectedOptionId String           @map("selected_option_id")
+  /// 服务端判定结果。
+  correct          Boolean
+  /// 客户端操作幂等键。
+  operationId      String           @map("operation_id")
+  /// 作答时间。
+  createdAt        DateTime         @default(now()) @map("created_at")
+  enrollment       CourseEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, operationId])
+  @@unique([enrollmentId, exerciseKey, selectedOptionId], map: "course_attempt_answer_key")
+  @@index([enrollmentId, exerciseKey, createdAt])
+  @@map("course_exercise_attempts")
+}
+
+/// 学员对一门课程的一份可更新评价。
+model CourseFeedback {
+  /// 评价标识。
+  id                   String           @id @default(uuid()) @db.Uuid
+  /// 所属学习注册。
+  enrollmentId         String           @unique @map("enrollment_id") @db.Uuid
+  /// 实用性评分。
+  usefulness           Int
+  /// 清晰度评分。
+  clarity              Int
+  /// 难度评分。
+  difficulty           Int
+  /// 推荐度评分。
+  recommendation       Int
+  /// 最有帮助的小节稳定键。
+  mostHelpfulLessonKey String?          @map("most_helpful_lesson_key")
+  /// 可选文字反馈。
+  comment              String           @default("")
+  /// 创建时间。
+  createdAt            DateTime         @default(now()) @map("created_at")
+  /// 更新时间。
+  updatedAt            DateTime         @updatedAt @map("updated_at")
+  enrollment           CourseEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@map("course_feedback")
 }
 
 /// 员工培训测评定义。

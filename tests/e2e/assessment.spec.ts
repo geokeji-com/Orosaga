@@ -151,6 +151,15 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+async function waitForVisualStability(page: import("@playwright/test").Page) {
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
+  });
+}
+
 test("employee can start, answer with keyboard and review the answer sheet", async ({
   page,
 }) => {
@@ -680,6 +689,7 @@ test("assessment key surfaces keep their visual hierarchy", async ({
 
   await page.setViewportSize({ width: 390, height: 844 });
   await resultMapQuestion.click();
+  await waitForVisualStability(page);
   await expect(page.getByRole("dialog")).toHaveScreenshot(
     "assessment-question-detail-mobile.png",
   );

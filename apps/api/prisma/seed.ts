@@ -8,7 +8,12 @@ const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
 const prisma = new PrismaClient({
   adapter: new PrismaPg(
-    { connectionString: databaseUrl },
+    {
+      connectionString: databaseUrl,
+      max: 1,
+      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 10_000,
+    },
     { schema: databaseSchemaFromUrl(databaseUrl) },
   ),
 });
@@ -73,6 +78,7 @@ async function seedNavigation() {
   const items = [
     ["公司", "/company", "building"],
     ["组织", "/organization", "network"],
+    ["学习中心", "/courses", "graduation-cap"],
     ["营地", "/camps", "book"],
     ["工作流", "/workflow", "workflow"],
     ["系统", "/systems", "boxes"],

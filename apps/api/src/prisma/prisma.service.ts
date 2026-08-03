@@ -13,7 +13,12 @@ export class PrismaService
     if (!databaseUrl) throw new Error("DATABASE_URL is required");
     super({
       adapter: new PrismaPg(
-        { connectionString: databaseUrl },
+        {
+          connectionString: databaseUrl,
+          max: 4,
+          connectionTimeoutMillis: 5_000,
+          idleTimeoutMillis: 10_000,
+        },
         { schema: databaseSchemaFromUrl(databaseUrl) },
       ),
     });
