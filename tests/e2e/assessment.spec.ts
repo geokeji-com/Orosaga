@@ -168,12 +168,80 @@ test("employee can start, answer with keyboard and review the answer sheet", asy
   await expect(page.getByRole("button", { name: /下一题/ })).toBeDisabled();
   await page.keyboard.press("2");
   await expect(page.getByText("答案已保存")).toBeVisible();
+  await expect(page.locator(".assessment-option.is-selected")).toHaveCSS(
+    "box-shadow",
+    "none",
+  );
   await expect(page.getByRole("button", { name: /下一题/ })).toBeEnabled();
   await page.getByRole("link", { name: "答题卡" }).click();
   await expect(
     page.getByRole("heading", { name: "交卷前，再看一遍" }),
   ).toBeVisible();
   await expect(page.getByText("还有 8 道题未作答")).toBeVisible();
+});
+
+test("long question keeps the desktop actions inside the first viewport", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1365, height: 768 });
+  await page.route("**/api/v1/assessment-attempts/*/questions/9", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ...assessmentQuestion(9),
+        stem: "跨平台实验同时呈现引用数量、来源类型、内容吸收率和行业样本差异，团队准备向客户解释结果并制定后续策略时，最合理的判断是什么？",
+        options: [
+          { id: "a", text: "让所有平台沿用完全相同的单一数量目标" },
+          {
+            id: "b",
+            text: "把平台差异直接换算为统一系数，再作为最终业务结论",
+          },
+          {
+            id: "c",
+            text: "分别核对指标定义、样本边界和内容吸收方式，再形成业务判断",
+          },
+          { id: "d", text: "只保留数值最高的平台数据，忽略其他来源" },
+        ],
+      }),
+    }),
+  );
+
+  await page.goto(
+    `/assessment/geo-foundations/attempt/${assessmentAttempt.id}/question/9`,
+  );
+  await expect(page.getByRole("heading", { name: /跨平台实验/ })).toBeVisible();
+
+  const geometry = await page.evaluate(() => {
+    const card = document
+      .querySelector(".assessment-question-card")!
+      .getBoundingClientRect();
+    const heading = document
+      .querySelector(".assessment-question-card h1")!
+      .getBoundingClientRect();
+    const navigation = document
+      .querySelector(".assessment-question-nav")!
+      .getBoundingClientRect();
+    return {
+      headingWidthRatio: heading.width / card.width,
+      navigationBottom: navigation.bottom,
+      viewportHeight: window.innerHeight,
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+    };
+  });
+
+  expect(geometry.headingWidthRatio).toBeGreaterThan(0.9);
+  expect(geometry.navigationBottom).toBeLessThanOrEqual(
+    geometry.viewportHeight,
+  );
+  expect(geometry.documentWidth).toBe(geometry.viewportWidth);
+  const accessibility = await new AxeBuilder({ page }).analyze();
+  expect(
+    accessibility.violations.filter((item) =>
+      ["serious", "critical"].includes(item.impact ?? ""),
+    ),
+  ).toEqual([]);
 });
 
 test("answer sheet navigation waits for the current answer to save", async ({

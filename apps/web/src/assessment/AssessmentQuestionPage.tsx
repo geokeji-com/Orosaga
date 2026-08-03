@@ -230,7 +230,11 @@ export default function AssessmentQuestionPage() {
           </div>
           <div
             className="assessment-progress-track"
+            role="progressbar"
             aria-label={`答题进度 ${position} / ${detail.questionCount}`}
+            aria-valuemin={0}
+            aria-valuemax={detail.questionCount}
+            aria-valuenow={position}
           >
             <span
               style={{ width: `${(position / detail.questionCount) * 100}%` }}
