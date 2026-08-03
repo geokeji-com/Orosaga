@@ -73,6 +73,7 @@ async function seedNavigation() {
   const items = [
     ["公司", "/company", "building"],
     ["组织", "/organization", "network"],
+    ["学习中心", "/courses", "graduation-cap"],
     ["营地", "/camps", "book"],
     ["工作流", "/workflow", "workflow"],
     ["系统", "/systems", "boxes"],

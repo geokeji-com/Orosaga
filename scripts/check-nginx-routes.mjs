@@ -63,10 +63,17 @@ try {
     ["/assessment/geo-foundations/report/example", 200],
     ["/assessment/geo-foundations/report/example/print", 200],
     ["/assessment/geo-foundations/report/example/print/answers", 200],
+    ["/courses", 200],
+    ["/courses/geo-foundations", 200],
+    ["/courses/geo-foundations/lesson/lesson-01/step/lesson-01-story", 200],
+    ["/courses/geo-foundations/completion", 200],
+    ["/courses/geo-foundations/certificate", 200],
     ["/admin/assessments", 200],
     ["/does-not-exist", 404],
     ["/workflow/too/deep", 404],
     ["/assessment/geo-foundations/report/example/too/deep", 404],
+    ["/courses/geo-foundations/lesson/lesson-01/step", 404],
+    ["/courses/geo-foundations/lesson/lesson-1/step/lesson-1-story", 404],
     ["/assets/missing.js", 404],
   ]) {
     const result = await response(path);

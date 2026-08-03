@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ContentPage } from "@orosaga/contracts";
-import { api } from "./lib/api";
+import { api, ApiError } from "./lib/api";
 import { assessmentApi } from "./lib/assessment-api";
+import { courseApi } from "./lib/course-api";
 import { Brand, BrandMark } from "./components/Brand";
 import { AccountMenu } from "./components/AccountMenu";
 import {
@@ -74,10 +75,10 @@ const atlasItems: AtlasItem[] = [
   },
   {
     id: "village",
-    eyebrow: "第一次登山",
-    title: "新手村",
-    description: "按入职天数推进的学习路线、任务清单与必读文档。",
-    meta: "建议从这里开始",
+    eyebrow: "系统化学习",
+    title: "学习中心",
+    description: "通过业务故事、方法模型和即时练习，逐步掌握 GEO 交付方法。",
+    meta: "20 节实战课程",
     icon: GraduationCap,
     tint: "amber",
   },
@@ -177,6 +178,11 @@ function HomePage() {
   const assessment = useQuery({
     queryKey: ["assessment", "geo-foundations"],
     queryFn: assessmentApi.overview,
+    retry: false,
+  });
+  const courses = useQuery({
+    queryKey: ["courses"],
+    queryFn: courseApi.list,
     retry: false,
   });
   const search = useQuery({
@@ -316,6 +322,22 @@ function HomePage() {
       return { label: "Review", detail: "题库证据复核中，完成后重新开放" };
     return { label: "Pending", detail: "题库完成发布后开放测评" };
   })();
+  const courseTrail = (() => {
+    if (
+      courses.error instanceof ApiError &&
+      courses.error.code === "COURSE_PILOT_ACCESS_REQUIRED"
+    )
+      return { label: "Pilot", detail: "试学版正在按授权名单逐步开放" };
+    const enrollment = courses.data?.[0]?.enrollment;
+    if (!enrollment)
+      return { label: "Start", detail: "20 节课，从业务认知走到项目运营" };
+    if (enrollment.status === "COMPLETED")
+      return { label: "Complete", detail: "课程已完成，可以随时回看" };
+    return {
+      label: `${enrollment.progressPercent}%`,
+      detail: `已完成 ${enrollment.completedLessons} / 20 节，继续学习`,
+    };
+  })();
 
   return (
     <div className="site-shell">
@@ -329,8 +351,8 @@ function HomePage() {
           <a href="#atlas" onClick={() => setMenuOpen(false)}>
             知识地图
           </a>
-          <a href="#journey" onClick={() => setMenuOpen(false)}>
-            新手村
+          <a href="/courses" onClick={() => setMenuOpen(false)}>
+            学习中心
           </a>
           <a href="/workflow" onClick={() => setMenuOpen(false)}>
             工作流
@@ -385,8 +407,8 @@ function HomePage() {
               </h1>
               <p>{homeSummary}</p>
               <div className="hero-actions">
-                <a className="primary-button" href="#journey">
-                  开始新手旅程 <ArrowRight size={17} />
+                <a className="primary-button" href="/courses">
+                  进入学习中心 <ArrowRight size={17} />
                 </a>
                 <a className="text-link" href="#atlas">
                   浏览知识地图 <ChevronRight size={16} />
@@ -507,7 +529,7 @@ function HomePage() {
                         : item.id === "systems"
                           ? "/systems"
                           : item.id === "village"
-                            ? "#journey"
+                            ? "/courses"
                             : item.id === "workflow"
                               ? "/workflow"
                               : item.id === "voices"
@@ -614,6 +636,21 @@ function HomePage() {
               </li>
               <li>
                 <span className="trail-number">05</span>
+                <div className="trail-copy">
+                  <small>{courseTrail.label}</small>
+                  <strong>完成 GEO 实战训练营</strong>
+                  <p>{courseTrail.detail}</p>
+                </div>
+                <a
+                  className="trail-action"
+                  href="/courses"
+                  aria-label="进入 GEO 实战训练营"
+                >
+                  <ChevronRight size={19} />
+                </a>
+              </li>
+              <li>
+                <span className="trail-number">06</span>
                 <div className="trail-copy">
                   <small>{assessmentTrail.label}</small>
                   <strong>完成 GEO 能力测评</strong>

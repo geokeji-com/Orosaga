@@ -6,6 +6,7 @@ import { AuthModule } from "./auth/auth.module.js";
 import { HealthController } from "./common/health.controller.js";
 import { requestIdMiddleware } from "./common/request-id.middleware.js";
 import { ContentModule } from "./content/content.module.js";
+import { CourseModule } from "./course/course.module.js";
 import { PortalModule } from "./portal/portal.module.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
 
@@ -18,6 +19,7 @@ import { PrismaModule } from "./prisma/prisma.module.js";
     PortalModule,
     AdminModule,
     AssessmentModule,
+    CourseModule,
   ],
   controllers: [HealthController],
 })
