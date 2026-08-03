@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { AssessmentReportPayload } from "@orosaga/contracts";
 import {
   formatDuration,
@@ -10,22 +10,16 @@ import { QuestionResultMap } from "./QuestionResultMap";
 
 type Aggregate = AssessmentReportPayload["dimensions"][number];
 type DataRow = { label: string; value: string };
-
-function ChartCard({
-  id,
-  index,
-  title,
-  note,
-  children,
-  rows,
-}: {
+type ChartCardProps = {
   id: string;
   index: number;
   title: string;
   note: string;
   children: ReactNode;
   rows: DataRow[];
-}) {
+};
+
+function ChartCard({ id, index, title, note, children, rows }: ChartCardProps) {
   return (
     <figure className="assessment-chart-card" data-chart-id={id}>
       <figcaption>
@@ -393,7 +387,7 @@ export function ReportCharts({
   const learningPaths = [
     ...new Set(payload.recommendations.flatMap((item) => item.learningPaths)),
   ];
-  const charts: ReactNode[] = [
+  const charts: ReactElement<ChartCardProps>[] = [
     <ChartCard
       id="result"
       index={1}
@@ -650,8 +644,16 @@ export function ReportCharts({
   }
   return (
     <div className="assessment-chart-grid">
-      {charts.map((chart, index) => (
-        <div key={index}>{chart}</div>
+      {charts.map((chart) => (
+        <div
+          className={
+            chart.props.id === "item-map" ? "assessment-chart-wide" : undefined
+          }
+          data-chart-wrapper={chart.props.id}
+          key={chart.props.id}
+        >
+          {chart}
+        </div>
       ))}
     </div>
   );
