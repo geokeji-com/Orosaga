@@ -9,8 +9,14 @@ describe("HealthController", () => {
     const controller = new HealthController({ $queryRaw: query } as never);
 
     expect(Reflect.getMetadata(IS_PUBLIC, controller.health)).toBe(true);
+    expect(Reflect.getMetadata(IS_PUBLIC, controller.version)).toBe(true);
     expect(Reflect.getMetadata(IS_PUBLIC, controller.ready)).toBe(true);
     expect(controller.health()).toEqual({ status: "ok" });
+    expect(controller.version()).toEqual({
+      version: "1.0.0",
+      commit: "development",
+      builtAt: "development",
+    });
     await expect(controller.ready()).resolves.toEqual({ status: "ready" });
     expect(query).toHaveBeenCalledOnce();
   });

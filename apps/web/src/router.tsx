@@ -36,6 +36,15 @@ const AssessmentAnswersPrintPage = lazy(() =>
 const AssessmentAdminPage = lazy(
   () => import("./assessment/AssessmentAdminPage"),
 );
+const CourseCenterPage = lazy(() => import("./course/CourseCenterPage"));
+const CourseIntroPage = lazy(() => import("./course/CourseIntroPage"));
+const CourseWorkspacePage = lazy(() => import("./course/CourseWorkspacePage"));
+const CourseCompletionPage = lazy(
+  () => import("./course/CourseCompletionPage"),
+);
+const CourseCertificatePage = lazy(
+  () => import("./course/CourseCertificatePage"),
+);
 
 const pending = (element: ReactNode) => (
   <Suspense fallback={<main className="route-state">正在读取知识地图…</main>}>
@@ -75,6 +84,23 @@ export const router = createBrowserRouter([
       { path: "/workflow/:slug", element: pending(<WorkflowPage />) },
       { path: "/camps", element: pending(<CampsPage />) },
       { path: "/voices", element: pending(<CampsPage />) },
+      { path: "/courses", element: pending(<CourseCenterPage />) },
+      {
+        path: "/courses/geo-foundations",
+        element: pending(<CourseIntroPage />),
+      },
+      {
+        path: "/courses/geo-foundations/lesson/:lessonKey/step/:stepKey",
+        element: pending(<CourseWorkspacePage />),
+      },
+      {
+        path: "/courses/geo-foundations/completion",
+        element: pending(<CourseCompletionPage />),
+      },
+      {
+        path: "/courses/geo-foundations/certificate",
+        element: pending(<CourseCertificatePage />),
+      },
       {
         path: "/assessment/geo-foundations",
         element: pending(<AssessmentIntroPage />),
