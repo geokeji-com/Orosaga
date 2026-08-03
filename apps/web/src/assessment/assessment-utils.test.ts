@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { internalLearningPath, learningPathLabel } from "./assessment-utils";
+import {
+  internalLearningPath,
+  learningPathLabel,
+  questionOptionLabel,
+} from "./assessment-utils";
 
 describe("assessment report learning paths", () => {
   it("turns known routes into employee-facing labels", () => {
@@ -16,5 +20,15 @@ describe("assessment report learning paths", () => {
     expect(internalLearningPath("/workflow//diagnosis")).toBeNull();
     expect(internalLearningPath("javascript:alert(1)")).toBeNull();
     expect(internalLearningPath("/workflow/../admin")).toBeNull();
+  });
+
+  it("labels answers by their current displayed order", () => {
+    const question = {
+      options: [{ id: "b" }, { id: "a" }, { id: "d" }, { id: "c" }],
+    };
+    expect(questionOptionLabel(question, "b")).toBe("1");
+    expect(questionOptionLabel(question, "a")).toBe("2");
+    expect(questionOptionLabel(question, null)).toBe("未作答");
+    expect(questionOptionLabel(question, "missing")).toBe("未知");
   });
 });

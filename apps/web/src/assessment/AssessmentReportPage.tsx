@@ -294,7 +294,7 @@ function AssessmentReportView({ mode }: { mode: ReportMode }) {
   )[0];
   const topMisconception = payload.misconceptions[0];
   const showCore = mode !== "answers-print";
-  const showAnswers = mode !== "core-print";
+  const showAnswers = mode === "answers-print";
   const chartCount = reportChartCount(payload);
 
   return (

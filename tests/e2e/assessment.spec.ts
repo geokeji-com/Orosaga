@@ -350,7 +350,7 @@ test("failed submission explains the error inside the dialog and retries", async
   );
 });
 
-test("diagnostic report exposes 15 charts, data tables and accessible content", async ({
+test("diagnostic report exposes 16 charts, clickable question details and accessible content", async ({
   page,
 }) => {
   await page.goto(`/assessment/geo-foundations/report/${assessmentAttempt.id}`);
@@ -358,10 +358,68 @@ test("diagnostic report exposes 15 charts, data tables and accessible content", 
     page.getByRole("heading", { name: "GEO 基础能力测评报告" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "从 15 个视角读取结果" }),
+    page.getByRole("heading", { name: "从 16 个视角读取结果" }),
   ).toBeVisible();
-  await expect(page.locator("figure[data-chart-id]")).toHaveCount(15);
-  await expect(page.locator("figure details table")).toHaveCount(15);
+  await expect(page.locator("figure[data-chart-id]")).toHaveCount(16);
+  await expect(page.locator("figure details table")).toHaveCount(16);
+
+  const incorrectQuestion = page.getByRole("button", {
+    name: /第 1 题，回答错误/,
+  });
+  await incorrectQuestion.click();
+  const dialog = page.getByRole("dialog", {
+    name: /第 1 题：客户报告准备引用 GEO 数据结论时/,
+  });
+  await expect(dialog).toBeVisible();
+  const answerSummary = dialog.locator(
+    ".assessment-question-answer-summary > div",
+  );
+  await expect(answerSummary.nth(0)).toContainText("你的答案2");
+  await expect(answerSummary.nth(1)).toContainText("标准答案1");
+  await expect(
+    dialog.locator(".assessment-question-detail-options li"),
+  ).toHaveCount(4);
+  await expect(
+    dialog.getByText("数据结论应由字段、分母、样本范围和限制条件共同限定。"),
+  ).toBeVisible();
+  const dialogResults = await new AxeBuilder({ page })
+    .include("[role=dialog]")
+    .analyze();
+  expect(
+    dialogResults.violations.filter((item) =>
+      ["serious", "critical"].includes(item.impact ?? ""),
+    ),
+  ).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(incorrectQuestion).toBeFocused();
+
+  const correctQuestion = page.getByRole("button", {
+    name: /第 2 题，回答正确/,
+  });
+  await correctQuestion.click();
+  await expect(page.getByRole("dialog")).toContainText("回答正确");
+  await page.getByRole("button", { name: "关闭题目详情" }).click();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await incorrectQuestion.click();
+  const mobileDialog = page.getByRole("dialog");
+  const mobileDialogBox = await mobileDialog.boundingBox();
+  expect(mobileDialogBox).not.toBeNull();
+  expect(mobileDialogBox!.x).toBeGreaterThanOrEqual(0);
+  expect(mobileDialogBox!.x + mobileDialogBox!.width).toBeLessThanOrEqual(390);
+  await expect
+    .poll(() =>
+      mobileDialog.evaluate(
+        (element) => getComputedStyle(element).backgroundColor,
+      ),
+    )
+    .toBe("rgb(255, 255, 255)");
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("heading", { name: "答案、原理与业务应用" }),
+  ).toHaveCount(0);
+
   const results = await new AxeBuilder({ page }).analyze();
   expect(
     results.violations.filter((item) =>
@@ -410,7 +468,7 @@ test("assessment layouts remain usable across supported widths and in print", as
   );
   await page.setViewportSize({ width: 794, height: 1123 });
   await page.emulateMedia({ media: "print" });
-  await expect(page.locator("figure[data-chart-id]")).toHaveCount(15);
+  await expect(page.locator("figure[data-chart-id]")).toHaveCount(16);
   await expect(page.locator(".assessment-topbar")).toBeHidden();
   expect(
     await page.evaluate(
@@ -517,12 +575,22 @@ test("assessment key surfaces keep their visual hierarchy", async ({
     "dimensions",
     "timing",
     "correctness-time",
+    "item-map",
     "dimension-change",
   ]) {
     await expect(
       page.locator(`figure[data-chart-id="${chartId}"]`),
     ).toHaveScreenshot(`assessment-chart-${chartId}.png`);
   }
+
+  const resultMapQuestion = page.getByRole("button", {
+    name: /第 1 题，回答错误/,
+  });
+  await resultMapQuestion.click();
+  await expect(page.getByRole("dialog")).toHaveScreenshot(
+    "assessment-question-detail-desktop.png",
+  );
+  await page.keyboard.press("Escape");
 
   await page.goto("/admin/assessments");
   await expect(

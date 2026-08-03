@@ -7,6 +7,17 @@ export function formatDuration(milliseconds: number) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
+export function questionOptionLabel(
+  question: { options: Array<{ id: string }> },
+  optionId: string | null,
+) {
+  if (!optionId) return "未作答";
+  const optionIndex = question.options.findIndex(
+    (option) => option.id === optionId,
+  );
+  return optionIndex >= 0 ? String(optionIndex + 1) : "未知";
+}
+
 const learningPathLabels: Record<string, string> = {
   "/company": "公司与业务",
   "/workflow": "GEO 工作流",

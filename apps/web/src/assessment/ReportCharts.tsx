@@ -4,7 +4,9 @@ import {
   formatDuration,
   internalLearningPath,
   learningPathLabel,
+  questionOptionLabel,
 } from "./assessment-utils";
+import { QuestionResultMap } from "./QuestionResultMap";
 
 type Aggregate = AssessmentReportPayload["dimensions"][number];
 type DataRow = { label: string; value: string };
@@ -566,12 +568,24 @@ export function ReportCharts({
         )}
       </ol>
     </ChartCard>,
+    <ChartCard
+      id="item-map"
+      index={14}
+      title={`${payload.questionResults.length} 题结果地图`}
+      note="点击任意题号查看题目、选项、你的答案、标准答案与完整解析。绿色为正确，红色为错误，灰色为未作答。"
+      rows={payload.questionResults.map((item) => ({
+        label: `第 ${item.position} 题`,
+        value: `${questionOptionLabel(item, item.selectedOptionId)}/${questionOptionLabel(item, item.correctOptionId)}，${item.correct ? "正确" : item.selectedOptionId ? "错误" : "未作答"}`,
+      }))}
+    >
+      <QuestionResultMap questions={payload.questionResults} />
+    </ChartCard>,
   ];
   if (payload.history.length > 1) {
     charts.push(
       <ChartCard
         id="score-history"
-        index={14}
+        index={15}
         title="历次分数趋势"
         note="对比同一测评周期内的多次结果。"
         rows={payload.history.map((item) => ({
@@ -595,7 +609,7 @@ export function ReportCharts({
     charts.push(
       <ChartCard
         id="dimension-change"
-        index={15}
+        index={16}
         title="能力维度变化"
         note="比较首次与本次五个维度的分数变化。"
         rows={Object.keys(latestDimensions).map((key) => ({

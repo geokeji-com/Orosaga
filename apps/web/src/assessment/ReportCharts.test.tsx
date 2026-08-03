@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import type { AssessmentReportPayload } from "@orosaga/contracts";
 import { afterEach, describe, expect, it } from "vitest";
 import { ReportCharts } from "./ReportCharts";
@@ -129,12 +135,12 @@ const payload: AssessmentReportPayload = {
 afterEach(cleanup);
 
 describe("assessment report charts", () => {
-  it("renders 13 evidence-backed charts with readable data tables", () => {
+  it("renders 14 evidence-backed charts with readable data tables", () => {
     const { container } = render(<ReportCharts payload={payload} />);
     const charts = container.querySelectorAll("figure[data-chart-id]");
-    expect(charts).toHaveLength(13);
-    expect(container.querySelectorAll("figure figcaption")).toHaveLength(13);
-    expect(container.querySelectorAll("figure details table")).toHaveLength(13);
+    expect(charts).toHaveLength(14);
+    expect(container.querySelectorAll("figure figcaption")).toHaveLength(14);
+    expect(container.querySelectorAll("figure details table")).toHaveLength(14);
     expect(container.textContent).toContain("业务重要度与错误");
     expect(container.textContent).toContain("数据边界外推");
     expect(
@@ -162,7 +168,7 @@ describe("assessment report charts", () => {
     };
     const { container } = render(<ReportCharts payload={historyPayload} />);
     expect(container.querySelectorAll("figure[data-chart-id]")).toHaveLength(
-      15,
+      16,
     );
     expect(
       container.querySelector('[data-chart-id="score-history"]'),
@@ -176,7 +182,94 @@ describe("assessment report charts", () => {
     expect(
       container.querySelector('[data-chart-id="dimension-change"]'),
     ).toHaveTextContent("首次本次");
-    expect(reportChartCount(historyPayload)).toBe(15);
+    expect(reportChartCount(historyPayload)).toBe(16);
+  });
+
+  it("opens complete details from correct and incorrect result-map items", () => {
+    const correctQuestion = payload.questionResults[0]!;
+    const incorrectQuestion: (typeof payload.questionResults)[number] = {
+      ...correctQuestion,
+      questionId: "91f38ef0-76d1-430a-93ee-2e65321a1a23",
+      stableKey: "GEO-002",
+      position: 2,
+      stem: "哪项做法会让数据结论失去证据边界？",
+      options: [
+        correctQuestion.options[1]!,
+        correctQuestion.options[0]!,
+        correctQuestion.options[2]!,
+        correctQuestion.options[3]!,
+      ].map((option) => ({ ...option, selected: option.id === "b" })),
+      selectedOptionId: "b",
+      correct: false,
+      misconceptionCode: "M-DATA-OVERREACH",
+    };
+    const unansweredQuestion: (typeof payload.questionResults)[number] = {
+      ...correctQuestion,
+      questionId: "91f38ef0-76d1-430a-93ee-2e65321a1a24",
+      stableKey: "GEO-003",
+      position: 3,
+      stem: "未作答时结果地图应如何呈现？",
+      options: correctQuestion.options.map((option) => ({
+        ...option,
+        selected: false,
+      })),
+      selectedOptionId: null,
+      correct: false,
+      misconceptionCode: null,
+    };
+    render(
+      <ReportCharts
+        payload={{
+          ...payload,
+          questionResults: [
+            correctQuestion,
+            incorrectQuestion,
+            unansweredQuestion,
+          ],
+        }}
+      />,
+    );
+
+    const correctButton = screen.getByRole("button", {
+      name: /第 1 题，回答正确/,
+    });
+    correctButton.focus();
+    fireEvent.click(correctButton);
+    let dialog = screen.getByRole("dialog", { name: correctQuestion.stem });
+    expect(
+      dialog.querySelectorAll(".assessment-question-detail-options > li"),
+    ).toHaveLength(4);
+    expect(dialog).toHaveTextContent("你的答案1");
+    expect(dialog).toHaveTextContent("标准答案1");
+    expect(dialog).toHaveTextContent("依据字段判断");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "关闭题目详情" }),
+    );
+    expect(correctButton).toHaveFocus();
+
+    const incorrectButton = screen.getByRole("button", {
+      name: /第 2 题，回答错误/,
+    });
+    fireEvent.click(incorrectButton);
+    dialog = screen.getByRole("dialog", { name: incorrectQuestion.stem });
+    expect(dialog).toHaveTextContent("你的答案1");
+    expect(dialog).toHaveTextContent("标准答案2");
+    expect(dialog).toHaveTextContent("页面颜色");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "关闭题目详情" }),
+    );
+
+    const unansweredButton = screen.getByRole("button", {
+      name: /第 3 题，未作答/,
+    });
+    expect(unansweredButton).toHaveClass("is-unanswered");
+    fireEvent.click(unansweredButton);
+    dialog = screen.getByRole("dialog", { name: unansweredQuestion.stem });
+    expect(dialog).toHaveTextContent("你的答案未作答");
+    expect(dialog).toHaveTextContent("标准答案1");
+    expect(
+      document.querySelector('[data-chart-id="item-map"]'),
+    ).toHaveTextContent("第 3 题未作答/1，未作答");
   });
 
   it("renders zero-count timing buckets at zero height", () => {

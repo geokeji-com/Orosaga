@@ -6,5 +6,5 @@ export function reportChartCount(payload: AssessmentReportPayload) {
     payload.history.filter(
       (item) => Object.keys(item.dimensionScores).length > 0,
     ).length > 1;
-  return 13 + Number(hasScoreHistory) + Number(hasDimensionHistory);
+  return 14 + Number(hasScoreHistory) + Number(hasDimensionHistory);
 }

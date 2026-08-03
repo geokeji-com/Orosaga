@@ -850,6 +850,194 @@ body.assessment-report-canvas::before {
   display: grid;
   align-items: center;
 }
+.assessment-question-result-map {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 6px;
+}
+.assessment-question-result-map button {
+  min-width: 0;
+  min-height: 48px;
+  padding: 6px 2px;
+  display: grid;
+  place-content: center;
+  gap: 2px;
+  color: #244f43;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: #e5f1ed;
+  cursor: pointer;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+.assessment-question-result-map button.is-incorrect {
+  color: #96382f;
+  background: #fff0ed;
+}
+.assessment-question-result-map button.is-unanswered {
+  color: #59635e;
+  background: #f0f2ef;
+}
+.assessment-question-result-map button:hover {
+  border-color: currentColor;
+  box-shadow: 0 5px 14px rgba(23, 27, 25, 0.08);
+  transform: translateY(-1px);
+}
+.assessment-question-result-map button:focus-visible {
+  outline: 3px solid rgba(62, 122, 105, 0.28);
+  outline-offset: 2px;
+  border-color: currentColor;
+}
+.assessment-question-result-map strong,
+.assessment-question-result-map span {
+  display: block;
+}
+.assessment-question-result-map strong {
+  font-size: 13px;
+}
+.assessment-question-result-map span {
+  font-size: 10px;
+}
+.assessment-question-detail-backdrop {
+  place-content: center;
+}
+.assessment-question-detail-dialog {
+  width: min(900px, calc(100vw - 40px));
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  color: var(--ink);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  background: white;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
+}
+.assessment-question-detail-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 20px 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+}
+.assessment-question-detail-header p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.assessment-question-detail-header > button {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  display: grid;
+  place-content: center;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+}
+.assessment-question-detail-header > button:hover {
+  border-color: var(--green);
+}
+.assessment-question-detail-header > button:focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 2px;
+  border-color: var(--green);
+}
+.assessment-question-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #96382f;
+  font-size: 13px;
+  font-weight: 700;
+}
+.assessment-question-status.is-correct {
+  color: var(--green);
+}
+.assessment-question-status.is-unanswered {
+  color: #59635e;
+}
+.assessment-question-status svg {
+  width: 17px;
+  height: 17px;
+}
+.assessment-question-detail-content {
+  padding: 28px;
+}
+.assessment-question-detail-content > h2 {
+  max-width: 760px;
+  margin: 0 0 22px;
+  font: 400 clamp(1.45rem, 2.5vw, 2rem)/1.4 var(--serif);
+}
+.assessment-question-answer-summary {
+  margin: 0 0 28px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f8f9f6;
+}
+.assessment-question-answer-summary div {
+  padding: 14px 16px;
+}
+.assessment-question-answer-summary div + div {
+  border-left: 1px solid var(--line);
+}
+.assessment-question-answer-summary dt {
+  color: var(--muted);
+  font-size: 11px;
+}
+.assessment-question-answer-summary dd {
+  margin: 5px 0 0;
+  font: 400 1.2rem var(--serif);
+}
+.assessment-question-answer-summary dd.is-correct {
+  color: var(--green);
+}
+.assessment-question-answer-summary dd.is-incorrect {
+  color: #96382f;
+}
+.assessment-question-answer-summary dd.is-unanswered {
+  color: #59635e;
+}
+.assessment-question-detail-content > section > h3,
+.assessment-question-detail-rationale h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 400 1rem var(--serif);
+}
+.assessment-question-detail-options {
+  margin-top: 12px;
+}
+.assessment-question-detail-options li > span {
+  font-weight: 700;
+}
+.assessment-question-detail-rationale {
+  margin-top: 18px;
+}
+.assessment-question-detail-rationale h3 svg {
+  width: 18px;
+  color: var(--green);
+}
+.assessment-question-detail-rationale dd a,
+.assessment-question-detail-rationale dd span {
+  margin-right: 10px;
+}
+.assessment-question-detail-content > .assessment-question-metadata {
+  margin: 18px 0 0;
+}
 .assessment-chart-empty {
   margin: 0;
   padding: 28px;
@@ -1819,6 +2007,45 @@ body.assessment-report-canvas::before {
   .assessment-topbar {
     min-height: 62px;
   }
+  .assessment-question-result-map {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 7px;
+  }
+  .assessment-question-result-map button {
+    min-height: 52px;
+  }
+  .assessment-question-detail-backdrop {
+    padding: 0;
+    place-content: end stretch;
+  }
+  .assessment-question-detail-dialog {
+    width: 100%;
+    max-height: 92dvh;
+    border-radius: 20px 20px 0 0;
+  }
+  .assessment-question-detail-header {
+    padding: 16px 18px;
+  }
+  .assessment-question-detail-content {
+    padding: 22px 16px 30px;
+  }
+  .assessment-question-detail-content > h2 {
+    font-size: 1.35rem;
+  }
+  .assessment-question-answer-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+  .assessment-question-answer-summary div:last-child {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+  .assessment-question-detail-options li {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+  .assessment-question-detail-options li small {
+    grid-column: 2;
+  }
   .assessment-topbar .brand-copy small,
   .assessment-topbar .account-menu-name,
   .assessment-keyboard-hint {
@@ -2046,6 +2273,13 @@ body.assessment-report-canvas::before {
   }
   .assessment-chart-data {
     display: none;
+  }
+  .assessment-question-detail-backdrop {
+    display: none !important;
+  }
+  .assessment-question-result-map button {
+    box-shadow: none;
+    transform: none;
   }
   .assessment-recommendations article,
   .assessment-analysis-list > details {
