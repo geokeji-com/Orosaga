@@ -84,10 +84,6 @@ body.assessment-report-canvas::before {
   color: var(--muted);
   font-size: var(--assessment-type-label);
 }
-.assessment-back:hover {
-  color: var(--ink);
-}
-
 .assessment-state {
   width: min(760px, calc(100% - 40px));
   min-height: calc(100vh - 72px);
@@ -295,10 +291,6 @@ body.assessment-report-canvas::before {
   font-weight: 700;
   cursor: pointer;
 }
-.assessment-primary:hover {
-  color: white;
-  background: #2d4039;
-}
 .assessment-primary:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -346,9 +338,6 @@ body.assessment-report-canvas::before {
   border: 1px solid var(--line);
   border-radius: 13px;
   background: white;
-}
-.assessment-history-list a:hover {
-  border-color: rgba(62, 122, 105, 0.45);
 }
 .assessment-history-list strong {
   font: 400 1.45rem var(--serif);
@@ -473,10 +462,6 @@ body.assessment-report-canvas::before {
     border-color 160ms ease,
     background 160ms ease,
     transform 160ms ease;
-}
-.assessment-option:hover {
-  border-color: rgba(62, 122, 105, 0.5);
-  transform: translateY(-1px);
 }
 .assessment-option.is-selected {
   border-color: var(--green);
@@ -930,11 +915,6 @@ body.assessment-report-canvas::before {
   color: #59635e;
   background: #f0f2ef;
 }
-.assessment-question-result-map button:hover {
-  border-color: currentColor;
-  box-shadow: 0 5px 14px rgba(23, 27, 25, 0.08);
-  transform: translateY(-1px);
-}
 .assessment-question-result-map button:focus-visible {
   outline: 3px solid rgba(62, 122, 105, 0.28);
   outline-offset: 2px;
@@ -992,9 +972,6 @@ body.assessment-report-canvas::before {
   border-radius: 50%;
   background: white;
   cursor: pointer;
-}
-.assessment-question-detail-header > button:hover {
-  border-color: var(--green);
 }
 .assessment-question-detail-header > button:focus-visible {
   outline: 3px solid var(--green);
@@ -1708,9 +1685,11 @@ body.assessment-report-canvas::before {
 .assessment-version-list {
   margin-top: 24px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 .assessment-version-list > article {
+  min-width: 0;
   padding: 22px;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -1983,6 +1962,31 @@ body.assessment-report-canvas::before {
   box-shadow: 0 10px 30px rgba(23, 27, 25, 0.12);
 }
 
+@media (hover: hover) {
+  .assessment-back:hover {
+    color: var(--ink);
+  }
+  .assessment-primary:hover {
+    color: white;
+    background: #2d4039;
+  }
+  .assessment-history-list a:hover {
+    border-color: rgba(62, 122, 105, 0.45);
+  }
+  .assessment-option:hover {
+    border-color: rgba(62, 122, 105, 0.5);
+    transform: translateY(-1px);
+  }
+  .assessment-question-result-map button:hover {
+    border-color: currentColor;
+    box-shadow: 0 5px 14px rgba(23, 27, 25, 0.08);
+    transform: translateY(-1px);
+  }
+  .assessment-question-detail-header > button:hover {
+    border-color: var(--green);
+  }
+}
+
 @media (max-width: 1120px) {
   .assessment-chart-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -2056,7 +2060,7 @@ body.assessment-report-canvas::before {
     grid-template-columns: 1fr;
   }
   .assessment-version-list dl {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .assessment-version-list dl div:nth-child(4) {
     border-left: 0;
@@ -2068,6 +2072,9 @@ body.assessment-report-canvas::before {
 }
 
 @media (max-width: 520px) {
+  .assessment-admin-shell .admin-topbar {
+    padding-inline: 12px;
+  }
   .assessment-topbar {
     min-height: 62px;
   }
@@ -2264,7 +2271,7 @@ body.assessment-report-canvas::before {
     flex-direction: column;
   }
   .assessment-version-list dl {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .assessment-version-list dl div:nth-child(odd) {
     border-left: 0;

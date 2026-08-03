@@ -117,7 +117,7 @@ export default function AssessmentAdminPage() {
       <header className="admin-topbar">
         <a href="/admin">
           <ArrowLeft size={16} aria-hidden="true" />
-          返回内容后台
+          <span className="admin-back-label">返回内容后台</span>
         </a>
         <strong>GEO 测评管理</strong>
         <AccountMenu />

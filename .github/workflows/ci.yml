@@ -61,13 +61,22 @@ jobs:
       - run: npm run test:e2e
       - name: Generate reviewable Linux visual baselines after failure
         if: failure()
-        run: npx playwright test tests/e2e/visual.spec.ts --update-snapshots
+        run: >-
+          npx playwright test
+          tests/e2e/visual.spec.ts
+          tests/e2e/account-menu.visual.spec.ts
+          tests/e2e/assessment.spec.ts
+          --grep "visual|visual hierarchy"
+          --update-snapshots
       - name: Upload generated Linux visual baselines on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: visual-baselines-linux-${{ github.sha }}
-          path: tests/e2e/visual.spec.ts-snapshots/*-chromium-linux.png
+          path: |
+            tests/e2e/visual.spec.ts-snapshots/*-chromium-linux.png
+            tests/e2e/account-menu.visual.spec.ts-snapshots/*-chromium-linux.png
+            tests/e2e/assessment.spec.ts-snapshots/*-chromium-linux.png
           if-no-files-found: ignore
       - run: npm run check:sql-comments
       - run: npm run check:bundle

@@ -434,7 +434,9 @@ test("assessment layouts remain usable across supported widths and in print", as
   const paths = [
     "/assessment/geo-foundations",
     `/assessment/geo-foundations/attempt/${assessmentAttempt.id}/question/1`,
+    `/assessment/geo-foundations/attempt/${assessmentAttempt.id}/review`,
     `/assessment/geo-foundations/report/${assessmentAttempt.id}`,
+    "/admin/assessments",
   ];
   for (const width of [320, 390, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 800 });
@@ -461,6 +463,20 @@ test("assessment layouts remain usable across supported widths and in print", as
         layout.fits,
         `${path} should not overflow at ${width}px: ${JSON.stringify(layout.overflowing)}`,
       ).toBe(true);
+      const versionCardOverflow = await page
+        .locator(".assessment-version-list > article")
+        .evaluateAll((elements) =>
+          elements
+            .filter((element) => element.scrollWidth > element.clientWidth + 1)
+            .map((element) => ({
+              clientWidth: element.clientWidth,
+              scrollWidth: element.scrollWidth,
+            })),
+        );
+      expect(
+        versionCardOverflow,
+        `version cards should not clip content at ${width}px`,
+      ).toEqual([]);
     }
   }
   await page.goto(
@@ -592,11 +608,24 @@ test("assessment key surfaces keep their visual hierarchy", async ({
   );
   await page.keyboard.press("Escape");
 
+  await page.setViewportSize({ width: 390, height: 844 });
+  await resultMapQuestion.click();
+  await expect(page.getByRole("dialog")).toHaveScreenshot(
+    "assessment-question-detail-mobile.png",
+  );
+  await page.keyboard.press("Escape");
+
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/admin/assessments");
   await expect(
     page.getByRole("heading", { name: "题库发布与测评记录" }),
   ).toBeVisible();
   await expect(page).toHaveScreenshot("assessment-admin-desktop.png", {
+    maxDiffPixelRatio: 0.002,
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page).toHaveScreenshot("assessment-admin-mobile.png", {
     maxDiffPixelRatio: 0.002,
   });
 });
