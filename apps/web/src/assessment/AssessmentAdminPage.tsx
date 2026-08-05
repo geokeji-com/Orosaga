@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { AccountMenu } from "../components/AccountMenu";
+import { useMe } from "../auth/AuthGate";
 import type { Employee } from "@orosaga/contracts";
 import {
   assessmentApi,
@@ -38,6 +39,7 @@ const statusLabels = {
 } as const;
 
 export default function AssessmentAdminPage() {
+  const me = useMe();
   const client = useQueryClient();
   const [gateVersion, setGateVersion] = useState<string | null>(null);
   const [gatePilotStatus, setGatePilotStatus] = useState<
@@ -177,9 +179,11 @@ export default function AssessmentAdminPage() {
   return (
     <div className="admin-shell assessment-admin-shell">
       <header className="admin-topbar">
-        <a href="/admin">
+        <a href={me.data?.role === "ADMIN" ? "/admin" : "/"}>
           <ArrowLeft size={16} aria-hidden="true" />
-          <span className="admin-back-label">返回内容后台</span>
+          <span className="admin-back-label">
+            {me.data?.role === "ADMIN" ? "返回内容后台" : "返回知识地图"}
+          </span>
         </a>
         <strong>GEO 测评管理</strong>
         <AccountMenu />

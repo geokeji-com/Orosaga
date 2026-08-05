@@ -9,6 +9,7 @@ datasource db {
 enum Role {
   EMPLOYEE
   EDITOR
+  ASSESSMENT_MANAGER
   ADMIN
 }
 

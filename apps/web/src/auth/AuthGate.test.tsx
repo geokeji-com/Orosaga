@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { SessionUser } from "@orosaga/contracts";
 import { ApiError, api } from "../lib/api";
-import { AdminOnlyGate, AuthGate } from "./AuthGate";
+import { AssessmentAdminGate, AuthGate } from "./AuthGate";
 
 const user: SessionUser = {
   id: "00000000-0000-4000-8000-000000000001",
@@ -89,7 +89,7 @@ describe("AuthGate history protection", () => {
   );
 });
 
-describe("AdminOnlyGate assessment permissions", () => {
+describe("AssessmentAdminGate assessment permissions", () => {
   afterEach(cleanup);
 
   it("redirects editors away from assessment administration", async () => {
@@ -99,7 +99,7 @@ describe("AdminOnlyGate assessment permissions", () => {
       <QueryClientProvider client={client}>
         <MemoryRouter initialEntries={["/admin/assessments"]}>
           <Routes>
-            <Route element={<AdminOnlyGate />}>
+            <Route element={<AssessmentAdminGate />}>
               <Route path="/admin/assessments" element={<p>测评管理</p>} />
             </Route>
             <Route path="/forbidden" element={<p>无权访问</p>} />
@@ -109,5 +109,24 @@ describe("AdminOnlyGate assessment permissions", () => {
     );
     expect(await screen.findByText("无权访问")).toBeVisible();
     expect(screen.queryByText("测评管理")).not.toBeInTheDocument();
+  });
+
+  it("allows assessment managers into assessment administration only", async () => {
+    const client = new QueryClient();
+    client.setQueryData(["me"], { ...user, role: "ASSESSMENT_MANAGER" });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/admin/assessments"]}>
+          <Routes>
+            <Route element={<AssessmentAdminGate />}>
+              <Route path="/admin/assessments" element={<p>测评管理</p>} />
+            </Route>
+            <Route path="/forbidden" element={<p>无权访问</p>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("测评管理")).toBeVisible();
+    expect(screen.queryByText("无权访问")).not.toBeInTheDocument();
   });
 });

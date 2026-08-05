@@ -6,11 +6,21 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
+import type { Role } from "@prisma/client";
 import type { Request } from "express";
 import { IS_PUBLIC, ROLES } from "./auth.decorators.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 
-const rank = { EMPLOYEE: 1, EDITOR: 2, ADMIN: 3 } as const;
+const roleInheritance: Record<Role, readonly Role[]> = {
+  EMPLOYEE: ["EMPLOYEE"],
+  EDITOR: ["EMPLOYEE", "EDITOR"],
+  ASSESSMENT_MANAGER: ["EMPLOYEE", "ASSESSMENT_MANAGER"],
+  ADMIN: ["EMPLOYEE", "EDITOR", "ASSESSMENT_MANAGER", "ADMIN"],
+};
+
+export function roleAllows(role: Role, requiredRole: Role) {
+  return roleInheritance[role].includes(requiredRole);
+}
 const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");
 
@@ -64,13 +74,13 @@ export class SessionGuard implements CanActivate {
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
   canActivate(context: ExecutionContext) {
-    const roles = this.reflector.getAllAndOverride<Array<keyof typeof rank>>(
-      ROLES,
-      [context.getHandler(), context.getClass()],
-    );
+    const roles = this.reflector.getAllAndOverride<Role[]>(ROLES, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
     if (!roles?.length) return true;
     const auth = context.switchToHttp().getRequest<Request>().auth;
-    return Boolean(auth && roles.some((role) => rank[auth.role] >= rank[role]));
+    return Boolean(auth && roles.some((role) => roleAllows(auth.role, role)));
   }
 }
 

@@ -100,7 +100,7 @@ export class AssessmentAttemptController {
   }
 }
 
-@Roles("ADMIN")
+@Roles("ADMIN", "ASSESSMENT_MANAGER")
 @Controller("api/v1/admin")
 export class AssessmentAdminController {
   constructor(private assessment: AssessmentService) {}

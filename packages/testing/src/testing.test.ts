@@ -5,5 +5,9 @@ describe("role fixture", () => {
   it("adds admin-only permissions", () => {
     expect(asRole("ADMIN").permissions).toContain("users:write-role");
     expect(asRole("EMPLOYEE").permissions).not.toContain("content:write");
+    expect(asRole("ASSESSMENT_MANAGER").permissions).toEqual([
+      "content:read",
+      "assessment:manage",
+    ]);
   });
 });

@@ -40,6 +40,7 @@
 }
 
 .account-menu-trigger:focus-visible,
+.account-menu-assessment:focus-visible,
 .account-menu-logout:focus-visible {
   outline: 2px solid var(--green);
   outline-offset: 2px;
@@ -138,6 +139,25 @@
   cursor: pointer;
   font: 600 11px var(--sans);
   text-align: left;
+}
+
+.account-menu-assessment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  margin-top: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.account-menu-assessment:hover {
+  background: #edf3ef;
+  color: var(--green);
 }
 
 .account-menu-logout:hover {

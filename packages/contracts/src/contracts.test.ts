@@ -9,6 +9,7 @@ import {
   organizationQuerySchema,
   saveContentPageSchema,
   saveAssessmentAnswerSchema,
+  updateRoleSchema,
 } from "./index.js";
 
 describe("shared contracts", () => {
@@ -124,5 +125,11 @@ describe("shared contracts", () => {
         reviewReference: "",
       }).success,
     ).toBe(false);
+  });
+
+  it("accepts the dedicated assessment manager role only where roles apply", () => {
+    expect(updateRoleSchema.parse({ role: "ASSESSMENT_MANAGER" }).role).toBe(
+      "ASSESSMENT_MANAGER",
+    );
   });
 });

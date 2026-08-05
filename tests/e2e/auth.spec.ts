@@ -108,3 +108,37 @@ test("authenticated pages identify the user and logout clears access", async ({
   await expect(page).toHaveURL((url) => url.pathname === "/login");
   await expect(page.locator(".admin-layout")).toHaveCount(0);
 });
+
+test("assessment managers can enter assessment administration but not content administration", async ({
+  context,
+  page,
+}) => {
+  expect((await context.request.post("/auth/dev-login")).ok()).toBeTruthy();
+  await page.route("**/api/v1/me", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "00000000-0000-4000-8000-000000000001",
+        feishuOpenId: "ou_test_assessment_manager",
+        displayName: "本地题库管理员",
+        role: "ASSESSMENT_MANAGER",
+        status: "ACTIVE",
+        permissions: ["content:read", "assessment:manage"],
+        csrfToken: "test-csrf-token",
+      }),
+    }),
+  );
+
+  await page.goto("/admin/assessments");
+  await expect(
+    page.getByRole("heading", { name: "题库发布与测评记录" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "账户：本地题库管理员" }).click();
+  await expect(page.getByText("题库管理员", { exact: true })).toBeVisible();
+
+  await page.goto("/admin");
+  await expect(
+    page.getByRole("heading", { name: "这条山路尚未开放" }),
+  ).toBeVisible();
+});

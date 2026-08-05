@@ -74,3 +74,13 @@ export function AdminOnlyGate() {
     );
   return <Outlet />;
 }
+
+export function AssessmentAdminGate() {
+  const me = useMe();
+  const location = useLocation();
+  if (me.data?.role !== "ADMIN" && me.data?.role !== "ASSESSMENT_MANAGER")
+    return (
+      <Navigate to="/forbidden" replace state={{ from: location.pathname }} />
+    );
+  return <Outlet />;
+}
