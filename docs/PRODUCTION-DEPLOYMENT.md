@@ -131,3 +131,4 @@ acme.sh --install-cert --ecc -d orosaga.wanhuchangan.com \
 - 静态 bundle 扫描不得检出员工姓名、Wiki token、内部地址和头像路径。
 - 浏览器不得看到 OSS URL；匿名 OSS HEAD 必须被拒绝。
 - GitHub 仓库公开期间，推送前必须通过敏感信息扫描，且不得新增凭据、员工迁移资料、头像或飞书节点 token。
+- GEO 测评题库的挂载、导入、人工门禁、回退和数据保留按 [GEO-ASSESSMENT-RUNBOOK.md](./GEO-ASSESSMENT-RUNBOOK.md) 执行；正式题库文件不得进入 release 或镜像层。

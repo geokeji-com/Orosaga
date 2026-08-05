@@ -98,10 +98,20 @@ export default function AdminPage() {
   return (
     <div className="admin-shell">
       <header className="admin-topbar">
-        <a href="/">
-          <ArrowLeft size={16} /> 返回门户
+        <a href="/" aria-label="返回门户">
+          <ArrowLeft size={16} />
+          <span className="admin-back-label">返回门户</span>
         </a>
-        <strong>Orosaga 内容后台</strong>
+        <div className="admin-topbar-title">
+          <strong>
+            <span className="admin-brand-prefix">Orosaga </span>内容后台
+          </strong>
+          {me.data?.role === "ADMIN" && (
+            <a href="/admin/assessments" aria-label="GEO 测评管理">
+              <span className="admin-nav-prefix">GEO </span>测评管理
+            </a>
+          )}
+        </div>
         <AccountMenu />
       </header>
       <main className="admin-layout">

@@ -18,16 +18,19 @@ export function Brand({
   className,
   href = "/",
   ariaLabel = "返回 Orosaga 山海经首页",
+  onClick,
 }: {
   className?: string;
   href?: string;
   ariaLabel?: string;
+  onClick?: ComponentProps<"a">["onClick"];
 }) {
   return (
     <a
       className={["brand", className].filter(Boolean).join(" ")}
       href={href}
       aria-label={ariaLabel}
+      onClick={onClick}
     >
       <BrandMark />
       <span className="brand-copy">

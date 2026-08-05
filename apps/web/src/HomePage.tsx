@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ContentPage } from "@orosaga/contracts";
 import { api } from "./lib/api";
+import { assessmentApi } from "./lib/assessment-api";
 import { Brand, BrandMark } from "./components/Brand";
 import { AccountMenu } from "./components/AccountMenu";
 import {
@@ -173,6 +174,11 @@ function HomePage() {
     queryKey: ["page", "home"],
     queryFn: () => api<ContentPage>("/api/v1/pages/home"),
   });
+  const assessment = useQuery({
+    queryKey: ["assessment", "geo-foundations"],
+    queryFn: assessmentApi.overview,
+    retry: false,
+  });
   const search = useQuery({
     queryKey: ["search", query.trim()],
     queryFn: () =>
@@ -283,6 +289,74 @@ function HomePage() {
     homeContent && "summary" in homeContent
       ? homeContent.summary
       : "一张持续生长的公司知识地图。认识我们为何出发，也找到你接下来要走的路。";
+  const assessmentTrail = (() => {
+    const data = assessment.data;
+    if (assessment.isPending)
+      return {
+        label: "Loading",
+        detail: "正在确认 GEO 能力测评的开放状态",
+        actionable: false,
+      };
+    if (assessment.isError || !data)
+      return {
+        label: "Unavailable",
+        detail: "测评服务暂时不可用，请稍后再试",
+        actionable: false,
+      };
+    if (data.mode === "PILOT" && data.status === "AVAILABLE")
+      return {
+        label: "Pilot",
+        detail: "你已获邀参与 GEO 题库试测，不计入正式认证",
+        actionable: true,
+      };
+    if (data.mode === "PILOT")
+      return {
+        label: "Pilot",
+        detail: "查看受控试测进度与结果；本次不计入正式认证",
+        actionable: true,
+      };
+    if (data.status === "IN_PROGRESS")
+      return {
+        label: "Continue",
+        detail: "本次测评进行中，点击继续答题",
+        actionable: true,
+      };
+    if (data.passed)
+      return {
+        label: "Passed",
+        detail: `已通过 · 最好成绩 ${data.bestScore} 分`,
+        actionable: true,
+      };
+    if (data.status === "AVAILABLE")
+      return {
+        label: "Ready",
+        detail: `50 道题 · 剩余 ${data.attemptsRemaining} 次机会`,
+        actionable: true,
+      };
+    if (data.status === "DAILY_LIMIT_REACHED")
+      return {
+        label: "Tomorrow",
+        detail: "今日机会已使用，明天可再次参加",
+        actionable: true,
+      };
+    if (data.status === "ATTEMPT_LIMIT_REACHED")
+      return {
+        label: "Complete",
+        detail: "本周期 3 次测评机会已完成",
+        actionable: true,
+      };
+    if (data.status === "REVIEW_REQUIRED")
+      return {
+        label: "Review",
+        detail: "题库证据复核中，完成后重新开放",
+        actionable: false,
+      };
+    return {
+      label: "Pending",
+      detail: "题库完成发布后开放测评",
+      actionable: false,
+    };
+  })();
 
   return (
     <div className="site-shell">
@@ -512,7 +586,7 @@ function HomePage() {
             <div className="journey-intro">
               <span className="eyebrow">Newcomer trail · 新手村</span>
               <h2 id="journey-title">不用一次读完一座山</h2>
-              <p>按真实工作节奏分成四段。每一段只回答当下最重要的问题。</p>
+              <p>按真实工作节奏分段推进，从认识业务到完成能力检验。</p>
               <a className="primary-button compact" href="#latest">
                 查看完整路线 <ArrowRight size={16} />
               </a>
@@ -578,6 +652,27 @@ function HomePage() {
                 >
                   <ChevronRight size={19} />
                 </a>
+              </li>
+              <li>
+                <span className="trail-number">05</span>
+                <div className="trail-copy">
+                  <small>{assessmentTrail.label}</small>
+                  <strong>完成 GEO 能力测评</strong>
+                  <p>{assessmentTrail.detail}</p>
+                </div>
+                {assessmentTrail.actionable ? (
+                  <a
+                    className="trail-action"
+                    href="/assessment/geo-foundations"
+                    aria-label="进入 GEO 基础能力测评"
+                  >
+                    <ChevronRight size={19} />
+                  </a>
+                ) : (
+                  <span className="trail-action is-disabled" aria-hidden="true">
+                    <ChevronRight size={19} />
+                  </span>
+                )}
               </li>
             </ol>
           </div>

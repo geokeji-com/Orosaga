@@ -19,7 +19,7 @@
 - 全新 PostgreSQL 验证库可从零执行 migration 和 seed，19 张业务表及字段 SQL 注释缺失数为 0。
 - API smoke 覆盖匿名拒绝、三角色 200/403、CSRF、统一校验错误、立即发布、409、知识源版本、搜索、退出与会话撤销。
 - 34 项 Playwright 稳定通过，包含 6 个页面在 1440、1024、768、390、320px 的 30 份视觉基线、真实 404、员工弹窗键盘关闭、后台立即发布和首页严重/致命无障碍扫描。
-- lint、Prettier、TypeScript、单元/契约覆盖率、production build、bundle budget、敏感 bundle、仓库 secret、许可证和 npm 官方漏洞审计均通过；npm audit 为 0 vulnerability。
+- lint、Prettier、TypeScript、单元/契约覆盖率、production build、bundle budget、敏感 bundle、仓库 secret 和许可证门禁均通过。npm 官方审计对 React Router RSC 专属通告 `GHSA-qwww-vcr4-c8h2` 保留至 2026-09-30 的限时例外；仓库固定使用已修复旧漏洞的 7.18.2，Web 为纯浏览器 SPA 且未启用 RSC 或 Server Action，其他 high/critical 通告继续阻断 CI。
 
 ## 当前生产状态与外部边界
 
