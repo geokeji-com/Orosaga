@@ -3,11 +3,16 @@ import {
   organizationQuerySchema,
   saveWorkflowSchema,
 } from "@orosaga/contracts";
-import { Prisma } from "@prisma/client";
+import { Prisma, type Role } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { workflowDefault } from "./workflow-default.js";
 
-const roleRank = { EMPLOYEE: 1, EDITOR: 2, ADMIN: 3 } as const;
+export function canReadSystemLink(role: Role, minimumRole: Role) {
+  if (minimumRole === "EMPLOYEE") return true;
+  if (minimumRole === "EDITOR") return role === "EDITOR" || role === "ADMIN";
+  if (minimumRole === "ADMIN") return role === "ADMIN";
+  return false;
+}
 
 function jsonText(value: Prisma.JsonValue | null, key: string) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return "";
@@ -149,14 +154,14 @@ export class PortalService {
     };
   }
 
-  async systemLinks(role: keyof typeof roleRank) {
+  async systemLinks(role: Role) {
     const rows = await this.prisma.systemLink.findMany({
       where: { enabled: true },
       include: { group: true },
       orderBy: [{ group: { sortOrder: "asc" } }, { sortOrder: "asc" }],
     });
     return rows
-      .filter((row) => roleRank[role] >= roleRank[row.minimumRole])
+      .filter((row) => canReadSystemLink(role, row.minimumRole))
       .map((row) => ({
         id: row.id,
         group: row.group.title,
@@ -190,7 +195,7 @@ export class PortalService {
     }));
   }
 
-  async search(q: string, role: keyof typeof roleRank, type?: string) {
+  async search(q: string, role: Role, type?: string) {
     const needle = q.trim().slice(0, 100);
     if (!needle) return { items: [], nextCursor: null };
     const [users, pages, workflows, systems, nodes] = await Promise.all([
@@ -278,7 +283,7 @@ export class PortalService {
         href: `/workflow/${row.slug}`,
       })),
       ...systems
-        .filter((row) => roleRank[role] >= roleRank[row.minimumRole])
+        .filter((row) => canReadSystemLink(role, row.minimumRole))
         .map((row) => ({
           id: row.id,
           type: "SYSTEM",

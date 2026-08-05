@@ -25,9 +25,12 @@ export function asRole(role: SessionUser["role"]): SessionUser {
             "users:write-role",
             "integrations:operate",
             "audit:read",
+            "assessment:manage",
           ]
         : role === "EDITOR"
           ? ["content:read", "content:write", "organization:write-profile"]
-          : ["content:read"],
+          : role === "ASSESSMENT_MANAGER"
+            ? ["content:read", "assessment:manage"]
+            : ["content:read"],
   };
 }

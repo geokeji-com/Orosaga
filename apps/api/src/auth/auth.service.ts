@@ -16,6 +16,7 @@ const digest = (value: string) =>
 const permissions = {
   EMPLOYEE: ["content:read"],
   EDITOR: ["content:read", "content:write", "organization:write-profile"],
+  ASSESSMENT_MANAGER: ["content:read", "assessment:manage"],
   ADMIN: [
     "content:read",
     "content:write",
@@ -25,6 +26,7 @@ const permissions = {
     "users:write-role",
     "integrations:operate",
     "audit:read",
+    "assessment:manage",
   ],
 } as const;
 

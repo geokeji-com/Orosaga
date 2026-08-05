@@ -1,7 +1,22 @@
 import { z } from "zod";
 
-export const roleSchema = z.enum(["EMPLOYEE", "EDITOR", "ADMIN"]);
+export const roleSchema = z.enum([
+  "EMPLOYEE",
+  "EDITOR",
+  "ASSESSMENT_MANAGER",
+  "ADMIN",
+]);
 export type Role = z.infer<typeof roleSchema>;
+
+// System links retain the original portal visibility tiers. Assessment managers
+// are employees for system-link visibility and must not become a configurable
+// link minimum role.
+export const systemLinkMinimumRoleSchema = z.enum([
+  "EMPLOYEE",
+  "EDITOR",
+  "ADMIN",
+]);
+export type SystemLinkMinimumRole = z.infer<typeof systemLinkMinimumRoleSchema>;
 
 export const permissionSchema = z.enum([
   "content:read",
@@ -12,6 +27,7 @@ export const permissionSchema = z.enum([
   "users:write-role",
   "integrations:operate",
   "audit:read",
+  "assessment:manage",
 ]);
 export type Permission = z.infer<typeof permissionSchema>;
 

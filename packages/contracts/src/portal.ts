@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { iconKeySchema, roleSchema, themeKeySchema } from "./common.js";
+import {
+  iconKeySchema,
+  systemLinkMinimumRoleSchema,
+  themeKeySchema,
+} from "./common.js";
 
 export const navigationItemSchema = z.object({
   id: z.string().uuid(),
@@ -44,7 +48,7 @@ export const systemLinkSchema = z.object({
   href: z.string().url(),
   iconKey: iconKeySchema,
   environment: z.enum(["INTERNAL", "PRODUCTION", "STAGING"]),
-  minimumRole: roleSchema,
+  minimumRole: systemLinkMinimumRoleSchema,
   enabled: z.boolean(),
   version: z.number().int().positive(),
 });
@@ -113,7 +117,7 @@ export const saveSystemLinkSchema = z.object({
   href: z.string().url(),
   iconKey: iconKeySchema,
   environment: z.enum(["INTERNAL", "PRODUCTION", "STAGING"]),
-  minimumRole: roleSchema,
+  minimumRole: systemLinkMinimumRoleSchema,
   enabled: z.boolean(),
 });
 

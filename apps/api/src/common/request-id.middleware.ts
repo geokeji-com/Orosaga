@@ -35,7 +35,7 @@ declare global {
       requestId: string;
       auth?: {
         userId: string;
-        role: "EMPLOYEE" | "EDITOR" | "ADMIN";
+        role: "EMPLOYEE" | "EDITOR" | "ASSESSMENT_MANAGER" | "ADMIN";
         csrfHash: string;
       };
     }

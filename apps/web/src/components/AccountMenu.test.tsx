@@ -25,9 +25,10 @@ const user: SessionUser = {
   permissions: [],
   csrfToken: "csrf",
 };
+let currentUser = user;
 
 vi.mock("../auth/AuthGate", () => ({
-  useMe: () => ({ data: user }),
+  useMe: () => ({ data: currentUser }),
 }));
 
 vi.mock("../lib/api", async (importOriginal) => {
@@ -54,6 +55,7 @@ function renderMenu(client = new QueryClient()) {
 
 describe("AccountMenu", () => {
   beforeEach(() => {
+    currentUser = user;
     vi.mocked(api).mockReset();
     vi.mocked(replaceWithLogin).mockReset();
   });
@@ -68,6 +70,17 @@ describe("AccountMenu", () => {
     expect(screen.getAllByText("李泽辰")).toHaveLength(2);
     expect(screen.getByText("管理员")).toBeVisible();
     expect(screen.queryByText("ou_private_identifier")).not.toBeInTheDocument();
+  });
+
+  it("provides GEO assessment management to assessment managers", () => {
+    currentUser = { ...user, role: "ASSESSMENT_MANAGER" };
+    renderMenu();
+    fireEvent.click(screen.getByRole("button", { name: "账户：李泽辰" }));
+    expect(screen.getByText("题库管理员")).toBeVisible();
+    expect(screen.getByRole("link", { name: "GEO 测评管理" })).toHaveAttribute(
+      "href",
+      "/admin/assessments",
+    );
   });
 
   it("closes with Escape and restores focus", () => {

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, LogOut } from "lucide-react";
+import { ChevronDown, ClipboardCheck, LogOut } from "lucide-react";
 import { useMe } from "../auth/AuthGate";
 import { ApiError, api } from "../lib/api";
 import { replaceWithLogin } from "../lib/session-navigation";
@@ -101,6 +101,12 @@ export function AccountMenu() {
               <small>{accountRoleLabel(user.role)}</small>
             </span>
           </div>
+          {(user.role === "ADMIN" || user.role === "ASSESSMENT_MANAGER") && (
+            <a className="account-menu-assessment" href="/admin/assessments">
+              <ClipboardCheck size={16} strokeWidth={1.8} aria-hidden="true" />
+              GEO 测评管理
+            </a>
+          )}
           <button
             className="account-menu-logout"
             type="button"

@@ -105,16 +105,16 @@
 
 Orosaga 是一个 npm workspaces 单体仓库，前后端和共享协议共同版本化：
 
-| 层级   | 当前实现                                                          | 本项目处理方式                               |
-| ------ | ----------------------------------------------------------------- | -------------------------------------------- |
-| Web    | React 19、TypeScript、Vite 8、React Router 7、TanStack Query、Zod | 增加懒加载测评路由和测评页面                 |
-| API    | NestJS 11、REST、Zod、Prisma 7.9 PostgreSQL Adapter               | 增加 `AssessmentModule`                      |
-| 数据库 | PostgreSQL 16、Prisma Schema、增量 Migration                      | 增加测评版本、题目、作答和报告快照表         |
-| 登录   | 飞书 OAuth、服务端 Session、CSRF、角色守卫                        | 原样复用；深链登录后回到测评页               |
-| 角色   | `EMPLOYEE`、`EDITOR`、`ADMIN`                                     | 员工答题，管理员发布和审计；编辑无测评管理权 |
-| Worker | Node.js Worker、飞书 SDK                                          | 本期无需承担考试核心逻辑                     |
-| 部署   | Docker Compose、Nginx、私有 OSS、RDS                              | 增量部署；补充新 SPA 路由验收                |
-| 测试   | Vitest、Testing Library、Playwright、axe                          | 新增规则、API、E2E、可访问性和视觉回归测试   |
+| 层级   | 当前实现                                                          | 本项目处理方式                                               |
+| ------ | ----------------------------------------------------------------- | ------------------------------------------------------------ |
+| Web    | React 19、TypeScript、Vite 8、React Router 7、TanStack Query、Zod | 增加懒加载测评路由和测评页面                                 |
+| API    | NestJS 11、REST、Zod、Prisma 7.9 PostgreSQL Adapter               | 增加 `AssessmentModule`                                      |
+| 数据库 | PostgreSQL 16、Prisma Schema、增量 Migration                      | 增加测评版本、题目、作答和报告快照表                         |
+| 登录   | 飞书 OAuth、服务端 Session、CSRF、角色守卫                        | 原样复用；深链登录后回到测评页                               |
+| 角色   | `EMPLOYEE`、`EDITOR`、`ASSESSMENT_MANAGER`、`ADMIN`               | 全体在职员工答题；题库管理员管理测评但不继承内容或全局管理权 |
+| Worker | Node.js Worker、飞书 SDK                                          | 本期无需承担考试核心逻辑                                     |
+| 部署   | Docker Compose、Nginx、私有 OSS、RDS                              | 增量部署；补充新 SPA 路由验收                                |
+| 测试   | Vitest、Testing Library、Playwright、axe                          | 新增规则、API、E2E、可访问性和视觉回归测试                   |
 
 ### 3.2 当前登录能力
 

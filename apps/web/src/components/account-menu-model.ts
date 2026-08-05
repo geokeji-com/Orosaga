@@ -3,6 +3,7 @@ import type { SessionUser } from "@orosaga/contracts";
 const roleLabels: Record<SessionUser["role"], string> = {
   ADMIN: "管理员",
   EDITOR: "编辑者",
+  ASSESSMENT_MANAGER: "题库管理员",
   EMPLOYEE: "员工",
 };
 

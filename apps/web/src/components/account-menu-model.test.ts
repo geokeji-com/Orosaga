@@ -11,6 +11,7 @@ describe("account menu presentation", () => {
   it("localizes every portal role", () => {
     expect(accountRoleLabel("ADMIN")).toBe("管理员");
     expect(accountRoleLabel("EDITOR")).toBe("编辑者");
+    expect(accountRoleLabel("ASSESSMENT_MANAGER")).toBe("题库管理员");
     expect(accountRoleLabel("EMPLOYEE")).toBe("员工");
   });
 });

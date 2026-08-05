@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import type { ReactNode } from "react";
 import { createBrowserRouter } from "react-router-dom";
-import { AdminGate, AdminOnlyGate, AuthGate } from "./auth/AuthGate";
+import { AdminGate, AssessmentAdminGate, AuthGate } from "./auth/AuthGate";
 
 const HomePage = lazy(() => import("./HomePage"));
 const CompanyPage = lazy(() => import("./CompanyPage"));
@@ -114,7 +114,7 @@ export const router = createBrowserRouter([
         children: [{ path: "/admin", element: pending(<AdminPage />) }],
       },
       {
-        element: <AdminOnlyGate />,
+        element: <AssessmentAdminGate />,
         children: [
           {
             path: "/admin/assessments",
