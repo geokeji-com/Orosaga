@@ -15,8 +15,8 @@
     "@larksuiteoapi/node-sdk": "1.71.1",
     "@orosaga/config": "1.0.0",
     "@orosaga/contracts": "1.0.0",
-    "@prisma/adapter-pg": "7.9.0",
-    "@prisma/client": "7.9.0",
+    "@prisma/adapter-pg": "7.9.1",
+    "@prisma/client": "7.9.1",
     "pg": "8.16.3",
     "zod": "4.4.3"
   },

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { SessionUser } from "@orosaga/contracts";
 import { ApiError, api } from "../lib/api";
-import { AuthGate } from "./AuthGate";
+import { AdminOnlyGate, AuthGate } from "./AuthGate";
 
 const user: SessionUser = {
   id: "00000000-0000-4000-8000-000000000001",
@@ -87,4 +87,27 @@ describe("AuthGate history protection", () => {
       expect(await screen.findByText("登录页")).toBeVisible();
     },
   );
+});
+
+describe("AdminOnlyGate assessment permissions", () => {
+  afterEach(cleanup);
+
+  it("redirects editors away from assessment administration", async () => {
+    const client = new QueryClient();
+    client.setQueryData(["me"], { ...user, role: "EDITOR" });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/admin/assessments"]}>
+          <Routes>
+            <Route element={<AdminOnlyGate />}>
+              <Route path="/admin/assessments" element={<p>测评管理</p>} />
+            </Route>
+            <Route path="/forbidden" element={<p>无权访问</p>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("无权访问")).toBeVisible();
+    expect(screen.queryByText("测评管理")).not.toBeInTheDocument();
+  });
 });

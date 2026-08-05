@@ -39,6 +39,9 @@ test("employee profile modal supports keyboard close", async ({ page }) => {
 
 test("homepage has no serious accessibility violations", async ({ page }) => {
   await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: /Orosaga/ }).first(),
+  ).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   expect(
     results.violations.filter((item) =>

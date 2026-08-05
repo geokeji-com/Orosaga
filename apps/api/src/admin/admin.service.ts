@@ -186,6 +186,13 @@ export class AdminService {
         where: { id },
         data: { title: data.title, version: nextVersion },
       });
+      await tx.assessmentVersion.updateMany({
+        where: { status: { not: "RETIRED" } },
+        data: {
+          sourceReviewStatus: "REVIEW_REQUIRED",
+          contentReviewStatus: "PENDING_HUMAN",
+        },
+      });
       for (const [position, stage] of data.stages.entries()) {
         const saved = await tx.workflowStage.create({
           data: {

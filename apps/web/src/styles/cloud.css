@@ -101,6 +101,17 @@
   align-items: center;
   gap: 6px;
 }
+.admin-topbar-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.admin-topbar-title > a {
+  padding-left: 14px;
+  color: var(--green);
+  border-left: 1px solid var(--line);
+  font-size: 12px;
+}
 .admin-layout {
   width: min(1180px, calc(100% - 40px));
   margin: 40px auto;
@@ -243,5 +254,27 @@
   }
   .admin-source {
     grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 520px) {
+  .admin-topbar {
+    padding: 0 12px;
+  }
+  .admin-topbar > a,
+  .admin-topbar-title,
+  .admin-topbar-title > a {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .admin-back-label,
+  .admin-brand-prefix,
+  .admin-nav-prefix {
+    display: none;
+  }
+  .admin-topbar-title {
+    gap: 8px;
+  }
+  .admin-topbar-title > a {
+    padding-left: 8px;
   }
 }

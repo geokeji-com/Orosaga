@@ -64,3 +64,13 @@ export function AdminGate() {
     );
   return <Outlet />;
 }
+
+export function AdminOnlyGate() {
+  const me = useMe();
+  const location = useLocation();
+  if (me.data?.role !== "ADMIN")
+    return (
+      <Navigate to="/forbidden" replace state={{ from: location.pathname }} />
+    );
+  return <Outlet />;
+}

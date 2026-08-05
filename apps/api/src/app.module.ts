@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { AdminModule } from "./admin/admin.module.js";
+import { AssessmentModule } from "./assessment/assessment.module.js";
 import { AuthModule } from "./auth/auth.module.js";
 import { HealthController } from "./common/health.controller.js";
 import { requestIdMiddleware } from "./common/request-id.middleware.js";
@@ -16,6 +17,7 @@ import { PrismaModule } from "./prisma/prisma.module.js";
     ContentModule,
     PortalModule,
     AdminModule,
+    AssessmentModule,
   ],
   controllers: [HealthController],
 })

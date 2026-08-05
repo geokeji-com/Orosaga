@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import type { ReactNode } from "react";
 import { createBrowserRouter } from "react-router-dom";
-import { AdminGate, AuthGate } from "./auth/AuthGate";
+import { AdminGate, AdminOnlyGate, AuthGate } from "./auth/AuthGate";
 
 const HomePage = lazy(() => import("./HomePage"));
 const CompanyPage = lazy(() => import("./CompanyPage"));
@@ -11,6 +11,31 @@ const WorkflowPage = lazy(() => import("./WorkflowPage"));
 const CampsPage = lazy(() => import("./CampsPage"));
 const AdminPage = lazy(() => import("./admin/AdminPage"));
 const LoginPage = lazy(() => import("./auth/LoginPage"));
+const AssessmentIntroPage = lazy(
+  () => import("./assessment/AssessmentIntroPage"),
+);
+const AssessmentQuestionPage = lazy(
+  () => import("./assessment/AssessmentQuestionPage"),
+);
+const AssessmentReviewPage = lazy(
+  () => import("./assessment/AssessmentReviewPage"),
+);
+const AssessmentReportPage = lazy(
+  () => import("./assessment/AssessmentReportPage"),
+);
+const AssessmentPrintPage = lazy(() =>
+  import("./assessment/AssessmentReportPage").then((module) => ({
+    default: module.AssessmentPrintPage,
+  })),
+);
+const AssessmentAnswersPrintPage = lazy(() =>
+  import("./assessment/AssessmentReportPage").then((module) => ({
+    default: module.AssessmentAnswersPrintPage,
+  })),
+);
+const AssessmentAdminPage = lazy(
+  () => import("./assessment/AssessmentAdminPage"),
+);
 
 const pending = (element: ReactNode) => (
   <Suspense fallback={<main className="route-state">正在读取知识地图…</main>}>
@@ -51,6 +76,30 @@ export const router = createBrowserRouter([
       { path: "/camps", element: pending(<CampsPage />) },
       { path: "/voices", element: pending(<CampsPage />) },
       {
+        path: "/assessment/geo-foundations",
+        element: pending(<AssessmentIntroPage />),
+      },
+      {
+        path: "/assessment/geo-foundations/attempt/:id/question/:position",
+        element: pending(<AssessmentQuestionPage />),
+      },
+      {
+        path: "/assessment/geo-foundations/attempt/:id/review",
+        element: pending(<AssessmentReviewPage />),
+      },
+      {
+        path: "/assessment/geo-foundations/report/:attemptId",
+        element: pending(<AssessmentReportPage />),
+      },
+      {
+        path: "/assessment/geo-foundations/report/:attemptId/print",
+        element: pending(<AssessmentPrintPage />),
+      },
+      {
+        path: "/assessment/geo-foundations/report/:attemptId/print/answers",
+        element: pending(<AssessmentAnswersPrintPage />),
+      },
+      {
         path: "/forbidden",
         element: (
           <StatusPage
@@ -63,6 +112,15 @@ export const router = createBrowserRouter([
       {
         element: <AdminGate />,
         children: [{ path: "/admin", element: pending(<AdminPage />) }],
+      },
+      {
+        element: <AdminOnlyGate />,
+        children: [
+          {
+            path: "/admin/assessments",
+            element: pending(<AssessmentAdminPage />),
+          },
+        ],
       },
       {
         path: "*",

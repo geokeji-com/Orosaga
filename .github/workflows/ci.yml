@@ -31,6 +31,7 @@ jobs:
     env:
       NODE_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/orosaga_test
+      ASSESSMENT_INTEGRATION_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/orosaga_test
       PUBLIC_ORIGIN: http://127.0.0.1:8080
       SESSION_SECRET: ci-only-session-secret-at-least-32-chars
       FEISHU_APP_ID: ci-placeholder
@@ -43,6 +44,8 @@ jobs:
         with:
           node-version: 24.17.0
           cache: npm
+      - name: Use repository npm version
+        run: npm install --global npm@11.6.2
       - run: npm ci
       - run: npm run db:generate
       - run: npm run db:migrate
@@ -58,18 +61,27 @@ jobs:
       - run: npm run test:e2e
       - name: Generate reviewable Linux visual baselines after failure
         if: failure()
-        run: npx playwright test tests/e2e/visual.spec.ts --update-snapshots
+        run: >-
+          npx playwright test
+          tests/e2e/visual.spec.ts
+          tests/e2e/account-menu.visual.spec.ts
+          tests/e2e/assessment.spec.ts
+          --grep "visual|visual hierarchy"
+          --update-snapshots
       - name: Upload generated Linux visual baselines on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: visual-baselines-linux-${{ github.sha }}
-          path: tests/e2e/visual.spec.ts-snapshots/*-chromium-linux.png
+          path: |
+            tests/e2e/visual.spec.ts-snapshots/*-chromium-linux.png
+            tests/e2e/account-menu.visual.spec.ts-snapshots/*-chromium-linux.png
+            tests/e2e/assessment.spec.ts-snapshots/*-chromium-linux.png
           if-no-files-found: ignore
       - run: npm run check:sql-comments
       - run: npm run check:bundle
       - run: npm run check:security
-      - run: npm audit --audit-level=high
+      - run: npm run check:audit
       - run: npm sbom --sbom-format=cyclonedx > orosaga-sbom.json
       - uses: actions/upload-artifact@v4
         with:

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ContentPage } from "@orosaga/contracts";
 import { api } from "./lib/api";
+import { assessmentApi } from "./lib/assessment-api";
 import { Brand, BrandMark } from "./components/Brand";
 import { AccountMenu } from "./components/AccountMenu";
 import {
@@ -173,6 +174,11 @@ function HomePage() {
     queryKey: ["page", "home"],
     queryFn: () => api<ContentPage>("/api/v1/pages/home"),
   });
+  const assessment = useQuery({
+    queryKey: ["assessment", "geo-foundations"],
+    queryFn: assessmentApi.overview,
+    retry: false,
+  });
   const search = useQuery({
     queryKey: ["search", query.trim()],
     queryFn: () =>
@@ -283,6 +289,33 @@ function HomePage() {
     homeContent && "summary" in homeContent
       ? homeContent.summary
       : "一张持续生长的公司知识地图。认识我们为何出发，也找到你接下来要走的路。";
+  const assessmentTrail = (() => {
+    const data = assessment.data;
+    if (!data)
+      return {
+        label: "Ready",
+        detail: "50 道题检验研究、策略、交付与治理能力",
+      };
+    if (data.status === "IN_PROGRESS")
+      return { label: "Continue", detail: "本次测评进行中，点击继续答题" };
+    if (data.passed)
+      return {
+        label: "Passed",
+        detail: `已通过 · 最好成绩 ${data.bestScore} 分`,
+      };
+    if (data.status === "AVAILABLE")
+      return {
+        label: "Ready",
+        detail: `50 道题 · 剩余 ${data.attemptsRemaining} 次机会`,
+      };
+    if (data.status === "DAILY_LIMIT_REACHED")
+      return { label: "Tomorrow", detail: "今日机会已使用，明天可再次参加" };
+    if (data.status === "ATTEMPT_LIMIT_REACHED")
+      return { label: "Complete", detail: "本周期 3 次测评机会已完成" };
+    if (data.status === "REVIEW_REQUIRED")
+      return { label: "Review", detail: "题库证据复核中，完成后重新开放" };
+    return { label: "Pending", detail: "题库完成发布后开放测评" };
+  })();
 
   return (
     <div className="site-shell">
@@ -512,7 +545,7 @@ function HomePage() {
             <div className="journey-intro">
               <span className="eyebrow">Newcomer trail · 新手村</span>
               <h2 id="journey-title">不用一次读完一座山</h2>
-              <p>按真实工作节奏分成四段。每一段只回答当下最重要的问题。</p>
+              <p>按真实工作节奏分段推进，从认识业务到完成能力检验。</p>
               <a className="primary-button compact" href="#latest">
                 查看完整路线 <ArrowRight size={16} />
               </a>
@@ -575,6 +608,21 @@ function HomePage() {
                   className="trail-action"
                   href="/camps"
                   aria-label="进入知识营地"
+                >
+                  <ChevronRight size={19} />
+                </a>
+              </li>
+              <li>
+                <span className="trail-number">05</span>
+                <div className="trail-copy">
+                  <small>{assessmentTrail.label}</small>
+                  <strong>完成 GEO 能力测评</strong>
+                  <p>{assessmentTrail.detail}</p>
+                </div>
+                <a
+                  className="trail-action"
+                  href="/assessment/geo-foundations"
+                  aria-label="进入 GEO 基础能力测评"
                 >
                   <ChevronRight size={19} />
                 </a>
