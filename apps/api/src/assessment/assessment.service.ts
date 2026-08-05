@@ -13,6 +13,7 @@ import {
   assessmentReportPayloadSchema,
   assessmentGateApprovalSchema,
   createAssessmentAttemptSchema,
+  grantAssessmentPilotParticipantSchema,
   saveAssessmentAnswerSchema,
   voidAssessmentAttemptSchema,
 } from "@orosaga/contracts";
@@ -34,6 +35,13 @@ type PublicOption = { id: OptionId; text: string };
 type AttemptManifest = {
   questions: Array<{ questionId: string; optionOrder: OptionId[] }>;
 };
+type PilotParticipantWithVersion = Prisma.AssessmentPilotParticipantGetPayload<{
+  include: {
+    version: {
+      include: { cycle: { include: { assessment: true } }; questions: true };
+    };
+  };
+}>;
 
 const asObject = (value: Prisma.JsonValue | null | undefined) =>
   value && typeof value === "object" && !Array.isArray(value)
@@ -95,6 +103,7 @@ const deterministicOrder = <T>(
 const attemptResponse = (attempt: {
   id: string;
   status: "IN_PROGRESS" | "SUBMITTED" | "EXPIRED" | "VOIDED";
+  kind: "FORMAL" | "PILOT";
   attemptNumber: number;
   startedAt: Date;
   deadlineAt: Date;
@@ -107,6 +116,7 @@ const attemptResponse = (attempt: {
 }) => ({
   id: attempt.id,
   status: attempt.status,
+  kind: attempt.kind,
   attemptNumber: attempt.attemptNumber,
   startedAt: attempt.startedAt.toISOString(),
   deadlineAt: attempt.deadlineAt.toISOString(),
@@ -151,11 +161,96 @@ export class AssessmentService {
     };
   }
 
+  private async pilotContext(slug: string, userId: string, now: Date) {
+    const participant = await this.prisma.assessmentPilotParticipant.findFirst({
+      where: {
+        userId,
+        revokedAt: null,
+        version: { status: "VALIDATED", cycle: { assessment: { slug } } },
+      },
+      orderBy: { createdAt: "desc" },
+      include: {
+        version: { include: { cycle: { include: { assessment: true } } } },
+      },
+    });
+    const version = participant?.version;
+    if (
+      !participant ||
+      !version ||
+      version.contentReviewStatus !== "APPROVED" ||
+      version.angoffStatus !== "APPROVED" ||
+      effectiveSourceReviewStatus(
+        version.sourceReviewStatus,
+        version.reviewDueAt,
+        now,
+      ) !== "CURRENT"
+    )
+      return null;
+    return {
+      participant,
+      version,
+      cycle: version.cycle,
+      assessment: version.cycle.assessment,
+    };
+  }
+
+  private async pilotOverview(
+    context: NonNullable<
+      Awaited<ReturnType<AssessmentService["pilotContext"]>>
+    >,
+    userId: string,
+    now: Date,
+  ): Promise<Record<string, unknown>> {
+    const attempts = await this.prisma.assessmentAttempt.findMany({
+      where: { userId, versionId: context.version.id, kind: "PILOT" },
+      orderBy: { createdAt: "asc" },
+      include: { version: true, answers: true },
+    });
+    const active = attempts.find((attempt) => attempt.status === "IN_PROGRESS");
+    if (active && active.deadlineAt <= now) {
+      await this.finalizeAttempt(active.id, userId, now);
+      return this.pilotOverview(context, userId, now);
+    }
+    const completed = attempts.filter(
+      (attempt) =>
+        attempt.status === "SUBMITTED" || attempt.status === "EXPIRED",
+    );
+    const latest = completed.at(-1) ?? null;
+    return {
+      assessmentSlug: context.assessment.slug,
+      title: context.assessment.title,
+      enabled: false,
+      mode: "PILOT" as const,
+      status: active
+        ? "IN_PROGRESS"
+        : completed.length || context.version.pilotStatus !== "PENDING_HUMAN"
+          ? "UNAVAILABLE"
+          : "AVAILABLE",
+      cycleKey: context.cycle.cycleKey,
+      version: context.version.version,
+      dailyLimit: 1,
+      maxAttempts: 1,
+      attemptsUsed: completed.length,
+      attemptsRemaining: completed.length ? 0 : 1,
+      attemptedToday: false,
+      nextEligibleAt: null,
+      activeAttemptId: active?.id ?? null,
+      activeDeadlineAt: active?.deadlineAt.toISOString() ?? null,
+      latestScore: latest?.score ?? null,
+      bestScore: latest?.score ?? null,
+      passed: false,
+      passScore: context.version.passScore,
+      history: completed.map((attempt) => attemptResponse(attempt)),
+    };
+  }
+
   async overview(
     slug: string,
     userId: string,
   ): Promise<Record<string, unknown>> {
     const now = new Date();
+    const pilot = await this.pilotContext(slug, userId, now);
+    if (pilot) return this.pilotOverview(pilot, userId, now);
     const context = await this.publishedContext(slug, now);
     if (!context.assessment)
       throw new NotFoundException({
@@ -167,6 +262,7 @@ export class AssessmentService {
         assessmentSlug: slug,
         title: context.assessment.title,
         enabled: context.assessment.enabled,
+        mode: null,
         status: "UNAVAILABLE",
         cycleKey: null,
         version: null,
@@ -186,7 +282,7 @@ export class AssessmentService {
       };
 
     const attempts = await this.prisma.assessmentAttempt.findMany({
-      where: { userId, cycleId: context.cycle.id },
+      where: { userId, cycleId: context.cycle.id, kind: "FORMAL" },
       orderBy: { attemptNumber: "asc" },
       include: { version: true, answers: true },
     });
@@ -213,6 +309,7 @@ export class AssessmentService {
         where: {
           userId,
           assessmentId: context.assessment.id,
+          kind: "FORMAL",
           quotaDate: new Date(`${quotaDate}T00:00:00.000Z`),
           status: { not: "VOIDED" },
         },
@@ -270,6 +367,101 @@ export class AssessmentService {
     };
   }
 
+  private async createPilotAttemptInTransaction(
+    tx: Prisma.TransactionClient,
+    participant: PilotParticipantWithVersion,
+    userId: string,
+    idempotencyKey: string,
+    now: Date,
+  ) {
+    const version = participant.version;
+    if (
+      participant.revokedAt ||
+      version.status !== "VALIDATED" ||
+      version.pilotStatus !== "PENDING_HUMAN" ||
+      version.contentReviewStatus !== "APPROVED" ||
+      version.angoffStatus !== "APPROVED" ||
+      effectiveSourceReviewStatus(
+        version.sourceReviewStatus,
+        version.reviewDueAt,
+        now,
+      ) !== "CURRENT"
+    )
+      throw new ServiceUnavailableException({
+        code: "ASSESSMENT_UNAVAILABLE",
+        message: "受控试测当前未开放",
+      });
+    const existingPilot = await tx.assessmentAttempt.findFirst({
+      where: { userId, versionId: version.id, kind: "PILOT" },
+      include: { version: true, answers: true },
+    });
+    if (existingPilot?.status === "IN_PROGRESS")
+      throw new ConflictException({
+        code: "ATTEMPT_ALREADY_ACTIVE",
+        message: "已有进行中的试测",
+      });
+    if (existingPilot)
+      throw new ForbiddenException({
+        code: "PILOT_ATTEMPT_COMPLETED",
+        message: "当前题库版本的试测已经完成",
+      });
+    const active = await tx.assessmentAttempt.findFirst({
+      where: {
+        userId,
+        assessmentId: version.cycle.assessmentId,
+        status: "IN_PROGRESS",
+      },
+      select: { id: true, deadlineAt: true },
+    });
+    if (active && active.deadlineAt > now)
+      throw new ConflictException({
+        code: "ATTEMPT_ALREADY_ACTIVE",
+        message: "已有进行中的考试",
+      });
+    if (active)
+      await this.finalizeAttemptInTransaction(tx, active.id, userId, now);
+    if (version.questions.length !== version.questionCount)
+      throw new ServiceUnavailableException({
+        code: "ASSESSMENT_VERSION_INVALID",
+        message: "题库版本未准备完成",
+      });
+    const attemptId = randomUUID();
+    const questions = deterministicOrder(
+      version.questions,
+      `${attemptId}:questions`,
+      (question) => question.id,
+    );
+    const manifest: AttemptManifest = {
+      questions: questions.map((question) => ({
+        questionId: question.id,
+        optionOrder: deterministicOrder(
+          asPublicOptions(question.options).map((option) => option.id),
+          `${attemptId}:${question.id}:options`,
+          (option) => option,
+        ),
+      })),
+    };
+    const quotaDate = new Date(`${calculateQuotaDate(now)}T00:00:00.000Z`);
+    const created = await tx.assessmentAttempt.create({
+      data: {
+        id: attemptId,
+        userId,
+        assessmentId: version.cycle.assessmentId,
+        cycleId: version.cycleId,
+        versionId: version.id,
+        idempotencyKey,
+        attemptNumber: 1,
+        quotaDate,
+        kind: "PILOT",
+        manifest: manifest as unknown as Prisma.InputJsonValue,
+        startedAt: now,
+        deadlineAt: new Date(now.getTime() + version.durationMinutes * 60_000),
+      },
+      include: { version: true, answers: true },
+    });
+    return attemptResponse(created);
+  }
+
   async createAttempt(slug: string, input: unknown, userId: string) {
     const data = createAssessmentAttemptSchema.parse(input);
     const existing = await this.prisma.assessmentAttempt.findUnique({
@@ -297,6 +489,34 @@ export class AssessmentService {
           });
           if (repeated) return attemptResponse(repeated);
           const now = new Date();
+          const pilotParticipant =
+            await tx.assessmentPilotParticipant.findFirst({
+              where: {
+                userId,
+                revokedAt: null,
+                version: {
+                  status: "VALIDATED",
+                  cycle: { assessment: { slug } },
+                },
+              },
+              orderBy: { createdAt: "desc" },
+              include: {
+                version: {
+                  include: {
+                    cycle: { include: { assessment: true } },
+                    questions: { orderBy: { position: "asc" } },
+                  },
+                },
+              },
+            });
+          if (pilotParticipant)
+            return this.createPilotAttemptInTransaction(
+              tx,
+              pilotParticipant,
+              userId,
+              data.idempotencyKey,
+              now,
+            );
           const assessment = await tx.assessment.findUnique({
             where: { slug },
             include: {
@@ -339,7 +559,7 @@ export class AssessmentService {
               message: "测评内容正在复核",
             });
           const allAttempts = await tx.assessmentAttempt.findMany({
-            where: { userId, cycleId: cycle.id },
+            where: { userId, cycleId: cycle.id, kind: "FORMAL" },
           });
           const attempts = allAttempts.filter(
             (attempt) => attempt.status !== "VOIDED",
@@ -377,6 +597,7 @@ export class AssessmentService {
                 userId,
                 assessmentId: assessment.id,
                 quotaDate,
+                kind: "FORMAL",
                 status: { not: "VOIDED" },
               },
             })) >= cycle.dailyLimit
@@ -424,6 +645,7 @@ export class AssessmentService {
                   ...attempts.map((attempt) => attempt.attemptNumber),
                 ) + 1,
               quotaDate,
+              kind: "FORMAL",
               manifest: manifest as unknown as Prisma.InputJsonValue,
               startedAt: now,
               deadlineAt,
@@ -770,6 +992,7 @@ export class AssessmentService {
         where: {
           userId: attempt.userId,
           cycleId: attempt.cycleId,
+          kind: attempt.kind,
           status: { in: ["SUBMITTED", "EXPIRED"] },
           attemptNumber: { lt: attempt.attemptNumber },
         },
@@ -1017,6 +1240,143 @@ export class AssessmentService {
     };
   }
 
+  async grantPilotParticipant(
+    versionId: string,
+    input: unknown,
+    actorId: string,
+    ip?: string,
+  ) {
+    const data = grantAssessmentPilotParticipantSchema.parse(input);
+    return this.prisma.$transaction(async (tx) => {
+      const [version, user] = await Promise.all([
+        tx.assessmentVersion.findUnique({ where: { id: versionId } }),
+        tx.user.findUnique({ where: { id: data.userId } }),
+      ]);
+      if (!version)
+        throw new NotFoundException({
+          code: "ASSESSMENT_VERSION_NOT_FOUND",
+          message: "题库版本不存在",
+        });
+      if (!user || user.status !== "ACTIVE")
+        throw new NotFoundException({
+          code: "PILOT_USER_NOT_FOUND",
+          message: "试测员工不存在或已停用",
+        });
+      if (
+        version.status !== "VALIDATED" ||
+        version.pilotStatus !== "PENDING_HUMAN" ||
+        version.contentReviewStatus !== "APPROVED" ||
+        version.angoffStatus !== "APPROVED" ||
+        effectiveSourceReviewStatus(
+          version.sourceReviewStatus,
+          version.reviewDueAt,
+          new Date(),
+        ) !== "CURRENT"
+      )
+        throw new ConflictException({
+          code: "PILOT_NOT_READY",
+          message: "请先完成机器校验、内容审核、Angoff 定标和来源复核",
+        });
+      const participant = await tx.assessmentPilotParticipant.upsert({
+        where: { versionId_userId: { versionId, userId: user.id } },
+        create: { versionId, userId: user.id, grantedById: actorId },
+        update: { grantedById: actorId, revokedAt: null, revokedById: null },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: "assessment.pilot-participant.grant",
+          resourceType: "assessment-version",
+          resourceId: versionId,
+          ipAddress: ip ?? null,
+          metadata: { userId: user.id },
+        },
+      });
+      return {
+        id: participant.id,
+        versionId,
+        userId: user.id,
+        displayName: user.displayName,
+      };
+    });
+  }
+
+  async pilotParticipants(versionId: string) {
+    const [version, participants, attempts] = await Promise.all([
+      this.prisma.assessmentVersion.findUnique({ where: { id: versionId } }),
+      this.prisma.assessmentPilotParticipant.findMany({
+        where: { versionId },
+        include: { user: true },
+        orderBy: { createdAt: "asc" },
+      }),
+      this.prisma.assessmentAttempt.findMany({
+        where: { versionId, kind: "PILOT" },
+        select: { userId: true, status: true, id: true },
+      }),
+    ]);
+    if (!version)
+      throw new NotFoundException({
+        code: "ASSESSMENT_VERSION_NOT_FOUND",
+        message: "题库版本不存在",
+      });
+    const attemptsByUser = new Map(
+      attempts.map((attempt) => [attempt.userId, attempt]),
+    );
+    return participants.map((participant) => {
+      const attempt = attemptsByUser.get(participant.userId);
+      return {
+        userId: participant.userId,
+        displayName: participant.user.displayName,
+        revokedAt: participant.revokedAt?.toISOString() ?? null,
+        grantedAt: participant.createdAt.toISOString(),
+        attemptId: attempt?.id ?? null,
+        attemptStatus: attempt?.status ?? null,
+      };
+    });
+  }
+
+  async revokePilotParticipant(
+    versionId: string,
+    userId: string,
+    actorId: string,
+    ip?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const participant = await tx.assessmentPilotParticipant.findUnique({
+        where: { versionId_userId: { versionId, userId } },
+      });
+      if (!participant)
+        throw new NotFoundException({
+          code: "PILOT_PARTICIPANT_NOT_FOUND",
+          message: "试测授权不存在",
+        });
+      const activeAttempt = await tx.assessmentAttempt.findFirst({
+        where: { userId, versionId, kind: "PILOT", status: "IN_PROGRESS" },
+        select: { id: true },
+      });
+      if (activeAttempt)
+        throw new ConflictException({
+          code: "PILOT_ATTEMPT_ACTIVE",
+          message: "试测进行中，完成或由管理员作废后才能撤销授权",
+        });
+      await tx.assessmentPilotParticipant.update({
+        where: { id: participant.id },
+        data: { revokedAt: new Date(), revokedById: actorId },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: "assessment.pilot-participant.revoke",
+          resourceType: "assessment-version",
+          resourceId: versionId,
+          ipAddress: ip ?? null,
+          metadata: { userId },
+        },
+      });
+      return { versionId, userId, revoked: true };
+    });
+  }
+
   async validateVersion(id: string, actorId: string, ip?: string) {
     const version = await this.prisma.assessmentVersion.findUnique({
       where: { id },
@@ -1118,11 +1478,28 @@ export class AssessmentService {
           code: "ASSESSMENT_VERSION_NOT_FOUND",
           message: "题库版本不存在",
         });
-      if (version.status !== "VALIDATED")
+      if (version.status !== "VALIDATED" && version.status !== "PUBLISHED")
         throw new ConflictException({
           code: "ASSESSMENT_VERSION_NOT_VALIDATED",
           message: "请先通过自动题库门禁",
         });
+      const completedPilots =
+        data.pilotStatus === "APPROVED"
+          ? await tx.assessmentAttempt.count({
+              where: {
+                versionId: id,
+                kind: "PILOT",
+                status: { in: ["SUBMITTED", "EXPIRED"] },
+              },
+            })
+          : 0;
+      if (data.pilotStatus === "APPROVED" && completedPilots === 0)
+        throw new ConflictException({
+          code: "PILOT_EVIDENCE_REQUIRED",
+          message: "至少完成一位受控试测员工的答题后，才能批准试测门禁",
+        });
+      const reviewDueAt = new Date();
+      reviewDueAt.setUTCMonth(reviewDueAt.getUTCMonth() + 6);
       const updated = await tx.assessmentVersion.update({
         where: { id },
         data: {
@@ -1131,6 +1508,7 @@ export class AssessmentService {
           pilotStatus: data.pilotStatus,
           sourceReviewStatus: data.sourceReviewStatus,
           passScore: data.passScore,
+          reviewDueAt,
         },
       });
       await tx.auditLog.create({
@@ -1143,6 +1521,8 @@ export class AssessmentService {
           metadata: {
             reviewReference: data.reviewReference,
             passScore: data.passScore,
+            reviewDueAt: reviewDueAt.toISOString(),
+            completedPilots,
           },
         },
       });
@@ -1153,6 +1533,7 @@ export class AssessmentService {
         pilotStatus: updated.pilotStatus,
         sourceReviewStatus: updated.sourceReviewStatus,
         passScore: updated.passScore,
+        reviewDueAt: updated.reviewDueAt?.toISOString() ?? null,
       };
     });
   }
@@ -1306,7 +1687,7 @@ export class AssessmentService {
     for (const attempt of groupAttempts) {
       if (attempt.status !== "SUBMITTED" && attempt.status !== "EXPIRED")
         continue;
-      const key = `${attempt.userId}:${attempt.cycleId}`;
+      const key = `${attempt.userId}:${attempt.cycleId}:${attempt.kind}`;
       const current = summaries.get(key) ?? {
         firstScore: null,
         bestScore: null,
@@ -1326,8 +1707,11 @@ export class AssessmentService {
       version: attempt.version.version,
       attemptNumber: attempt.attemptNumber,
       status: attempt.status,
+      kind: attempt.kind,
       score: attempt.score,
-      ...(summaries.get(`${attempt.userId}:${attempt.cycleId}`) ?? {
+      ...(summaries.get(
+        `${attempt.userId}:${attempt.cycleId}:${attempt.kind}`,
+      ) ?? {
         firstScore: null,
         bestScore: null,
         passed: false,

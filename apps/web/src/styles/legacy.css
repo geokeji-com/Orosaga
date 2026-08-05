@@ -874,13 +874,13 @@ kbd {
   background: #243934;
 }
 .tint-ink .card-eyebrow {
-  opacity: 0.65;
+  opacity: 0.72;
 }
 .tint-ink p {
-  opacity: 0.7;
+  opacity: 0.76;
 }
 .tint-ink .card-meta {
-  opacity: 0.6;
+  opacity: 0.72;
 }
 
 .journey-band {
@@ -991,7 +991,7 @@ kbd {
 }
 
 .trail small {
-  color: rgba(255, 255, 255, 0.58);
+  color: rgba(244, 248, 243, 0.76);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;

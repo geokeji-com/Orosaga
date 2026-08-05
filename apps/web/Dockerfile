@@ -9,7 +9,6 @@ COPY apps/worker/package.json apps/worker/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
 COPY packages/config/package.json packages/config/package.json
 COPY packages/testing/package.json packages/testing/package.json
-RUN npm install --global npm@11.6.2
 RUN npm ci
 COPY tsconfig.base.json ./
 COPY packages/contracts packages/contracts

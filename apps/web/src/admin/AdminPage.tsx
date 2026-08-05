@@ -106,9 +106,11 @@ export default function AdminPage() {
           <strong>
             <span className="admin-brand-prefix">Orosaga </span>内容后台
           </strong>
-          <a href="/admin/assessments" aria-label="GEO 测评管理">
-            <span className="admin-nav-prefix">GEO </span>测评管理
-          </a>
+          {me.data?.role === "ADMIN" && (
+            <a href="/admin/assessments" aria-label="GEO 测评管理">
+              <span className="admin-nav-prefix">GEO </span>测评管理
+            </a>
+          )}
         </div>
         <AccountMenu />
       </header>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Check, Clock3, Grid3X3 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useBlocker, useNavigate, useParams } from "react-router-dom";
 import type {
   AssessmentAttemptDetail,
   AssessmentQuestion,
@@ -55,6 +55,9 @@ export default function AssessmentQuestionPage() {
   const client = useQueryClient();
   const activeDuration = useRef<ActiveDurationTracker | null>(null);
   const [saveState, setSaveState] = useState({ position: 0, message: "" });
+  const [conflictResolvedAt, setConflictResolvedAt] = useState<number | null>(
+    null,
+  );
 
   const attempt = useQuery({
     queryKey: ["assessment-attempt", id],
@@ -114,6 +117,8 @@ export default function AssessmentQuestionPage() {
         activeDurationMs: activeDuration.current?.read(performance.now()) ?? 0,
       }),
     onMutate: (input) => {
+      setConflictResolvedAt(null);
+      setSaveState({ position, message: "" });
       client.setQueryData<AssessmentQuestion>(
         ["assessment-question", id, position],
         (current) =>
@@ -151,13 +156,61 @@ export default function AssessmentQuestionPage() {
           ? "答案在其他设备更新，已同步最新内容"
           : "保存失败，当前选择已保留，请重试",
       });
-      if (isConflict) await question.refetch();
+      if (isConflict) {
+        const result = await question.refetch();
+        if (!result.error) {
+          setConflictResolvedAt(position);
+          setSaveState({
+            position,
+            message: "答案在其他设备更新，已同步最新内容",
+          });
+        }
+      }
     },
   });
 
+  const saveRequiresAttention =
+    save.isPending ||
+    (save.isError &&
+      saveState.position === position &&
+      conflictResolvedAt !== position);
+  const blocker = useBlocker(saveRequiresAttention);
+
+  useEffect(() => {
+    if (blocker.state !== "blocked") return;
+    blocker.reset();
+  }, [blocker]);
+
+  useEffect(() => {
+    if (!saveRequiresAttention) return;
+    const preventUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", preventUnload);
+    return () => window.removeEventListener("beforeunload", preventUnload);
+  }, [saveRequiresAttention]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey || event.altKey || save.isPending)
+      if (
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        saveRequiresAttention
+      )
+        return;
+      const target = event.target;
+      const neutralSurface =
+        target === document.body || target === document.documentElement;
+      if (
+        target instanceof Element &&
+        !neutralSurface &&
+        (!target.closest(".assessment-question-card") ||
+          target.closest(
+            "a, button, input, textarea, select, [contenteditable='true']",
+          ))
+      )
         return;
       const option = question.data?.options[Number(event.key) - 1];
       if (!option) return;
@@ -169,7 +222,7 @@ export default function AssessmentQuestionPage() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [question.data, save]);
+  }, [question.data, save, saveRequiresAttention]);
 
   if (attempt.isPending || question.isPending)
     return (
@@ -213,11 +266,25 @@ export default function AssessmentQuestionPage() {
 
   const item = question.data;
   const detail = attempt.data;
-  const go = (next: number) =>
+  const notifyNavigationBlocked = () =>
+    setSaveState({
+      position,
+      message: save.isPending ? "答案正在保存，请稍候" : "请先重试保存答案",
+    });
+  const go = (next: number) => {
+    if (saveRequiresAttention) {
+      notifyNavigationBlocked();
+      return;
+    }
     navigate(`/assessment/geo-foundations/attempt/${id}/question/${next}`);
+  };
 
   return (
-    <AssessmentLayout compact>
+    <AssessmentLayout
+      compact
+      navigationLocked={saveRequiresAttention}
+      onNavigationBlocked={notifyNavigationBlocked}
+    >
       <main className="assessment-question-page">
         <header className="assessment-progress-header">
           <div>
@@ -341,16 +408,18 @@ export default function AssessmentQuestionPage() {
         <nav className="assessment-question-nav" aria-label="题目导航">
           <button
             type="button"
-            disabled={position === 1 || save.isPending}
+            disabled={position === 1 || saveRequiresAttention}
             onClick={() => go(position - 1)}
           >
             <ArrowLeft size={17} aria-hidden="true" /> 上一题
           </button>
           <a
             href={`/assessment/geo-foundations/attempt/${id}/review`}
-            aria-disabled={save.isPending}
+            aria-disabled={saveRequiresAttention}
             onClick={(event) => {
-              if (save.isPending) event.preventDefault();
+              if (!saveRequiresAttention) return;
+              event.preventDefault();
+              notifyNavigationBlocked();
             }}
           >
             <Grid3X3 size={16} aria-hidden="true" /> 答题卡
@@ -358,11 +427,7 @@ export default function AssessmentQuestionPage() {
           {position < detail.questionCount ? (
             <button
               type="button"
-              disabled={
-                !item.selectedOptionId ||
-                save.isPending ||
-                (save.isError && saveState.position === position)
-              }
+              disabled={!item.selectedOptionId || saveRequiresAttention}
               onClick={() => go(position + 1)}
             >
               下一题 <ArrowRight size={17} aria-hidden="true" />
@@ -370,11 +435,7 @@ export default function AssessmentQuestionPage() {
           ) : (
             <button
               type="button"
-              disabled={
-                !item.selectedOptionId ||
-                save.isPending ||
-                (save.isError && saveState.position === position)
-              }
+              disabled={!item.selectedOptionId || saveRequiresAttention}
               onClick={() =>
                 navigate(`/assessment/geo-foundations/attempt/${id}/review`)
               }

@@ -57,6 +57,11 @@ enum AssessmentAttemptStatus {
   VOIDED
 }
 
+enum AssessmentAttemptKind {
+  FORMAL
+  PILOT
+}
+
 enum AssessmentReportStatus {
   PENDING
   READY
@@ -85,6 +90,9 @@ model User {
   revisions           ContentRevision[]
   assessmentAttempts  AssessmentAttempt[]
   assessmentOverrides AssessmentOverride[]
+  pilotParticipations AssessmentPilotParticipant[] @relation("AssessmentPilotParticipantUser")
+  pilotGrants         AssessmentPilotParticipant[] @relation("AssessmentPilotParticipantGrantedBy")
+  pilotRevocations    AssessmentPilotParticipant[] @relation("AssessmentPilotParticipantRevokedBy")
 
   @@map("users")
 }
@@ -181,6 +189,7 @@ model AssessmentVersion {
   cycle               AssessmentCycle              @relation(fields: [cycleId], references: [id], onDelete: Restrict)
   questions           AssessmentQuestion[]
   attempts            AssessmentAttempt[]
+  pilotParticipants   AssessmentPilotParticipant[]
 
   @@unique([cycleId, version])
   @@index([cycleId, status, publishedAt])
@@ -286,6 +295,8 @@ model AssessmentAttempt {
   attemptNumber  Int                     @map("attempt_number")
   /// 上海自然日配额日期。
   quotaDate      DateTime                @map("quota_date") @db.Date
+  /// 正式认证或受控预发布试测。
+  kind           AssessmentAttemptKind   @default(FORMAL)
   /// 考试状态。
   status         AssessmentAttemptStatus @default(IN_PROGRESS)
   /// 题目和选项顺序快照，不含答案。
@@ -316,6 +327,32 @@ model AssessmentAttempt {
   @@index([userId, assessmentId, createdAt])
   @@index([cycleId, quotaDate, status])
   @@map("assessment_attempts")
+}
+
+/// 仅用于发布前代表性新人试测的受控参与者名单。
+model AssessmentPilotParticipant {
+  /// 参与资格稳定标识。
+  id          String             @id @default(uuid()) @db.Uuid
+  /// 对应的未发布题库版本。
+  versionId   String             @map("version_id") @db.Uuid
+  /// 被授权的内部员工。
+  userId      String             @map("user_id") @db.Uuid
+  /// 授权管理员。
+  grantedById String             @map("granted_by_id") @db.Uuid
+  /// 授权时间。
+  createdAt   DateTime           @default(now()) @map("created_at")
+  /// 撤销时间；为空表示仍可试测。
+  revokedAt   DateTime?          @map("revoked_at")
+  /// 撤销管理员。
+  revokedById String?            @map("revoked_by_id") @db.Uuid
+  version     AssessmentVersion  @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  user        User               @relation("AssessmentPilotParticipantUser", fields: [userId], references: [id], onDelete: Restrict)
+  grantedBy   User               @relation("AssessmentPilotParticipantGrantedBy", fields: [grantedById], references: [id], onDelete: Restrict)
+  revokedBy   User?              @relation("AssessmentPilotParticipantRevokedBy", fields: [revokedById], references: [id], onDelete: Restrict)
+
+  @@unique([versionId, userId])
+  @@index([userId, revokedAt])
+  @@map("assessment_pilot_participants")
 }
 
 /// 考试中的最终答案、修改次数与辅助耗时。

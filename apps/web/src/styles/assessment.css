@@ -1851,6 +1851,31 @@ body.assessment-report-canvas::before {
   border-radius: 14px;
   background: #f5f8f5;
 }
+
+.assessment-pilot-list {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assessment-pilot-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(23, 27, 25, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.54);
+}
+
+.assessment-pilot-list span,
+.assessment-pilot-list small {
+  display: grid;
+  gap: 2px;
+}
 .assessment-quality-panel > header {
   display: flex;
   align-items: flex-start;

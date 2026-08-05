@@ -18,6 +18,7 @@ export const assessmentUser: SessionUser = {
 export const assessmentAttempt: AssessmentAttempt = {
   id: "10000000-0000-4000-8000-000000000001",
   status: "IN_PROGRESS",
+  kind: "FORMAL",
   attemptNumber: 1,
   startedAt: "2026-08-03T01:00:00.000Z",
   deadlineAt: "2027-08-03T01:30:00.000Z",

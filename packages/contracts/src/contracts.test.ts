@@ -75,6 +75,7 @@ describe("shared contracts", () => {
       assessmentAttemptSchema.safeParse({
         id: "2bf2fb73-8576-47c8-bec8-b8e35228cc8b",
         status: "SUBMITTED",
+        kind: "FORMAL",
         attemptNumber: 1,
         startedAt: "2026-08-03T01:00:00.000Z",
         deadlineAt: "2026-08-03T01:30:00.000Z",

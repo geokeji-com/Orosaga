@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { databaseSchemaFromUrl } from "@orosaga/config";
 import { importAssessmentPack } from "./assessment-import.js";
 import { validateAssessmentPack } from "./assessment-pack.js";
 import { AssessmentService } from "./assessment.service.js";
@@ -74,7 +75,10 @@ integration("assessment PostgreSQL integration", () => {
 
   beforeAll(async () => {
     prisma = new PrismaClient({
-      adapter: new PrismaPg({ connectionString: databaseUrl! }),
+      adapter: new PrismaPg(
+        { connectionString: databaseUrl! },
+        { schema: databaseSchemaFromUrl(databaseUrl!) },
+      ),
     });
     service = new AssessmentService(prisma as unknown as PrismaService);
     content = new ContentService(prisma as unknown as PrismaService);
@@ -103,6 +107,61 @@ integration("assessment PostgreSQL integration", () => {
     employeeId = employee.id;
     otherId = other.id;
   });
+
+  const completePilot = async (
+    versionId: string,
+    reviewReference: string,
+    passScore = 80,
+  ) => {
+    await service.approveVersionGates(
+      versionId,
+      {
+        contentReviewStatus: "APPROVED",
+        angoffStatus: "APPROVED",
+        pilotStatus: "PENDING_HUMAN",
+        sourceReviewStatus: "CURRENT",
+        passScore,
+        reviewReference: `${reviewReference}-readiness`,
+      },
+      adminId,
+    );
+    await service.grantPilotParticipant(
+      versionId,
+      { userId: employeeId },
+      adminId,
+    );
+    await service.grantPilotParticipant(
+      versionId,
+      { userId: otherId },
+      adminId,
+    );
+    const attempt = await service.createAttempt(
+      assessmentSlug,
+      { idempotencyKey: `pilot-${randomUUID()}` },
+      employeeId,
+    );
+    expect(attempt.kind).toBe("PILOT");
+    await service.submit(attempt.id, employeeId);
+    await service.approveVersionGates(
+      versionId,
+      {
+        contentReviewStatus: "APPROVED",
+        angoffStatus: "APPROVED",
+        pilotStatus: "APPROVED",
+        sourceReviewStatus: "CURRENT",
+        passScore,
+        reviewReference,
+      },
+      adminId,
+    );
+    await expect(
+      service.createAttempt(
+        assessmentSlug,
+        { idempotencyKey: `pilot-after-approval-${randomUUID()}` },
+        otherId,
+      ),
+    ).rejects.toMatchObject({ response: { code: "ASSESSMENT_UNAVAILABLE" } });
+  };
 
   afterAll(async () => {
     await prisma?.$disconnect();
@@ -134,18 +193,21 @@ integration("assessment PostgreSQL integration", () => {
       cycle: { status: "CLOSED" },
     });
     await service.validateVersion(imported.versionId, adminId);
-    await service.approveVersionGates(
-      imported.versionId,
-      {
-        contentReviewStatus: "APPROVED",
-        angoffStatus: "APPROVED",
-        pilotStatus: "APPROVED",
-        sourceReviewStatus: "CURRENT",
-        passScore: 80,
-        reviewReference: "integration-review-2026-H2",
-      },
-      adminId,
-    );
+    await expect(
+      service.approveVersionGates(
+        imported.versionId,
+        {
+          contentReviewStatus: "APPROVED",
+          angoffStatus: "APPROVED",
+          pilotStatus: "APPROVED",
+          sourceReviewStatus: "CURRENT",
+          passScore: 80,
+          reviewReference: "integration-review-without-pilot",
+        },
+        adminId,
+      ),
+    ).rejects.toMatchObject({ response: { code: "PILOT_EVIDENCE_REQUIRED" } });
+    await completePilot(imported.versionId, "integration-review-2026-H2");
     await prisma.assessmentVersion.update({
       where: { id: imported.versionId },
       data: { reviewDueAt: new Date(Date.now() - 1_000) },
@@ -182,7 +244,7 @@ integration("assessment PostgreSQL integration", () => {
       concurrent.filter((result) => result.status === "fulfilled"),
     ).toHaveLength(1);
     const stored = await prisma.assessmentAttempt.findMany({
-      where: { userId: employeeId },
+      where: { userId: employeeId, kind: "FORMAL" },
     });
     expect(stored).toHaveLength(1);
     expect(JSON.stringify(stored[0]!.manifest)).not.toMatch(
@@ -294,17 +356,10 @@ integration("assessment PostgreSQL integration", () => {
       reviewDueAt: new Date(Date.now() + 86_400_000),
     });
     await service.validateVersion(revisedImported.versionId, adminId);
-    await service.approveVersionGates(
+    await completePilot(
       revisedImported.versionId,
-      {
-        contentReviewStatus: "APPROVED",
-        angoffStatus: "APPROVED",
-        pilotStatus: "APPROVED",
-        sourceReviewStatus: "CURRENT",
-        passScore: 85,
-        reviewReference: "integration-review-2026-H2-v1.1",
-      },
-      adminId,
+      "integration-review-2026-H2-v1.1",
+      85,
     );
     await service.publishVersion(revisedImported.versionId, adminId);
     expect(await service.overview(assessmentSlug, employeeId)).toMatchObject({
@@ -404,17 +459,32 @@ integration("assessment PostgreSQL integration", () => {
       },
     ]);
     await service.approveVersionGates(
-      secondImported.versionId,
+      revisedImported.versionId,
       {
         contentReviewStatus: "APPROVED",
         angoffStatus: "APPROVED",
         pilotStatus: "APPROVED",
         sourceReviewStatus: "CURRENT",
-        passScore: 80,
-        reviewReference: "integration-review-2027-H1",
+        passScore: 85,
+        reviewReference: "integration-review-published-recovery",
       },
       adminId,
     );
+    expect(
+      await prisma.assessmentVersion.findUnique({
+        where: { id: revisedImported.versionId },
+        select: {
+          status: true,
+          sourceReviewStatus: true,
+          contentReviewStatus: true,
+        },
+      }),
+    ).toEqual({
+      status: "PUBLISHED",
+      sourceReviewStatus: "CURRENT",
+      contentReviewStatus: "APPROVED",
+    });
+    await completePilot(secondImported.versionId, "integration-review-2027-H1");
     await service.publishVersion(secondImported.versionId, adminId);
     expect(
       await prisma.assessmentVersion.findUnique({

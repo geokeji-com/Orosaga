@@ -10,9 +10,17 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { AccountMenu } from "../components/AccountMenu";
-import { assessmentApi } from "../lib/assessment-api";
+import type { Employee } from "@orosaga/contracts";
+import {
+  assessmentApi,
+  type AssessmentAdminAttempt,
+  type AssessmentVersionSummary,
+} from "../lib/assessment-api";
+import { api } from "../lib/api";
 import { formatDuration } from "./assessment-utils";
 import { useDialogFocus } from "./use-dialog-focus";
+import { AssessmentDialog } from "./AssessmentDialog";
+import "../styles/assessment.css";
 
 const statusLabels = {
   DRAFT: "草稿",
@@ -32,14 +40,22 @@ const statusLabels = {
 export default function AssessmentAdminPage() {
   const client = useQueryClient();
   const [gateVersion, setGateVersion] = useState<string | null>(null);
+  const [gatePilotStatus, setGatePilotStatus] = useState<
+    "PENDING_HUMAN" | "APPROVED"
+  >("PENDING_HUMAN");
   const [reviewReference, setReviewReference] = useState("");
   const [passScore, setPassScore] = useState(80);
-  const [voiding, setVoiding] = useState<string | null>(null);
+  const [voiding, setVoiding] = useState<AssessmentAdminAttempt | null>(null);
   const [qualityVersion, setQualityVersion] = useState<string | null>(null);
-  const [reportAttempt, setReportAttempt] = useState<string | null>(null);
+  const [reportAttempt, setReportAttempt] =
+    useState<AssessmentAdminAttempt | null>(null);
+  const [pilotVersion, setPilotVersion] =
+    useState<AssessmentVersionSummary | null>(null);
+  const [pilotQuery, setPilotQuery] = useState("");
   const [confirmingAction, setConfirmingAction] = useState<{
     type: "publish" | "retire";
     id: string;
+    target: AssessmentVersionSummary;
   } | null>(null);
   const [voidReason, setVoidReason] = useState("");
   const [voidCode, setVoidCode] = useState<
@@ -59,9 +75,22 @@ export default function AssessmentAdminPage() {
     enabled: Boolean(qualityVersion),
   });
   const report = useQuery({
-    queryKey: ["admin-assessment-report", reportAttempt],
-    queryFn: () => assessmentApi.adminReport(reportAttempt!),
+    queryKey: ["admin-assessment-report", reportAttempt?.id],
+    queryFn: () => assessmentApi.adminReport(reportAttempt!.id),
     enabled: Boolean(reportAttempt),
+  });
+  const pilotParticipants = useQuery({
+    queryKey: ["assessment-pilot-participants", pilotVersion?.id],
+    queryFn: () => assessmentApi.pilotParticipants(pilotVersion!.id),
+    enabled: Boolean(pilotVersion),
+  });
+  const pilotCandidates = useQuery({
+    queryKey: ["assessment-pilot-candidates", pilotQuery.trim()],
+    queryFn: () =>
+      api<{ items: Employee[]; nextCursor: string | null }>(
+        `/api/v1/organization/members?q=${encodeURIComponent(pilotQuery.trim())}`,
+      ),
+    enabled: Boolean(pilotVersion) && pilotQuery.trim().length > 0,
   });
   const refresh = async () => {
     await Promise.all([
@@ -73,18 +102,45 @@ export default function AssessmentAdminPage() {
     mutationFn: async ({
       type,
       id,
+      userId,
     }: {
-      type: "validate" | "publish" | "retire" | "gates" | "void";
+      type:
+        | "validate"
+        | "publish"
+        | "retire"
+        | "gates"
+        | "void"
+        | "grant-pilot"
+        | "revoke-pilot";
       id: string;
+      userId?: string;
     }) => {
       if (type === "validate") return assessmentApi.validateVersion(id);
       if (type === "publish") return assessmentApi.publishVersion(id);
       if (type === "retire") return assessmentApi.retireVersion(id);
       if (type === "gates")
-        return assessmentApi.approveGates(id, reviewReference, passScore);
+        return assessmentApi.approveGates(
+          id,
+          reviewReference,
+          passScore,
+          gatePilotStatus,
+        );
+      if (type === "grant-pilot")
+        return assessmentApi.grantPilotParticipant(id, userId!);
+      if (type === "revoke-pilot")
+        return assessmentApi.revokePilotParticipant(id, userId!);
       return assessmentApi.voidAttempt(id, voidCode, voidReason);
     },
-    onSuccess: async () => {
+    onSuccess: async (_, variables) => {
+      if (
+        variables.type === "grant-pilot" ||
+        variables.type === "revoke-pilot"
+      ) {
+        await client.invalidateQueries({
+          queryKey: ["assessment-pilot-participants", variables.id],
+        });
+        return;
+      }
       setGateVersion(null);
       setVoiding(null);
       setConfirmingAction(null);
@@ -93,10 +149,16 @@ export default function AssessmentAdminPage() {
       await refresh();
     },
   });
+  const closeVoidDialog = () => {
+    action.reset();
+    setVoiding(null);
+    setVoidReason("");
+    setVoidCode("TECHNICAL");
+  };
   const [voidDialogRef, onVoidDialogKeyDown] = useDialogFocus<HTMLFormElement>({
     open: Boolean(voiding),
     closeEnabled: !action.isPending,
-    onClose: () => setVoiding(null),
+    onClose: () => closeVoidDialog(),
   });
   const [reportDialogRef, onReportDialogKeyDown] = useDialogFocus<HTMLElement>({
     open: Boolean(reportAttempt),
@@ -228,14 +290,52 @@ export default function AssessmentAdminPage() {
                   <button
                     type="button"
                     disabled={
-                      action.isPending || version.status !== "VALIDATED"
+                      action.isPending ||
+                      (version.status !== "VALIDATED" &&
+                        version.status !== "PUBLISHED")
                     }
                     onClick={() => {
                       setGateVersion(version.id);
                       setPassScore(version.passScore);
+                      setGatePilotStatus(version.pilotStatus);
                     }}
                   >
-                    录入人工门禁
+                    录入内容 / Angoff
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      action.isPending ||
+                      version.status !== "VALIDATED" ||
+                      version.contentReviewStatus !== "APPROVED" ||
+                      version.angoffStatus !== "APPROVED" ||
+                      version.sourceReviewStatus !== "CURRENT"
+                    }
+                    onClick={() => {
+                      action.reset();
+                      setPilotVersion(version);
+                      setPilotQuery("");
+                    }}
+                  >
+                    管理试测名单
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      action.isPending ||
+                      version.status !== "VALIDATED" ||
+                      version.contentReviewStatus !== "APPROVED" ||
+                      version.angoffStatus !== "APPROVED" ||
+                      version.sourceReviewStatus !== "CURRENT" ||
+                      version.pilotStatus === "APPROVED"
+                    }
+                    onClick={() => {
+                      setGateVersion(version.id);
+                      setPassScore(version.passScore);
+                      setGatePilotStatus("APPROVED");
+                    }}
+                  >
+                    确认试测
                   </button>
                   <button
                     type="button"
@@ -252,6 +352,7 @@ export default function AssessmentAdminPage() {
                       setConfirmingAction({
                         type: "publish",
                         id: version.id,
+                        target: version,
                       });
                     }}
                   >
@@ -267,6 +368,7 @@ export default function AssessmentAdminPage() {
                       setConfirmingAction({
                         type: "retire",
                         id: version.id,
+                        target: version,
                       });
                     }}
                   >
@@ -307,8 +409,9 @@ export default function AssessmentAdminPage() {
                     </label>
                     <p>
                       <ShieldCheck aria-hidden="true" />
-                      提交表示内容审核、Angoff
-                      定标、试测与证据时效均已由负责人确认。
+                      {gatePilotStatus === "APPROVED"
+                        ? "提交表示已核对受控试测完成记录及其评审结论。"
+                        : "提交表示内容审核、Angoff 定标与证据时效均已由负责人确认；试测仍需单独完成。"}
                     </p>
                     <div>
                       <button
@@ -332,6 +435,90 @@ export default function AssessmentAdminPage() {
               </article>
             ))}
           </div>
+          {pilotVersion && (
+            <section
+              className="assessment-quality-panel"
+              aria-labelledby="pilot-title"
+            >
+              <header>
+                <div>
+                  <span className="eyebrow">Controlled pilot · 受控试测</span>
+                  <h3 id="pilot-title">
+                    {pilotVersion.title} · {pilotVersion.version}
+                  </h3>
+                </div>
+                <button type="button" onClick={() => setPilotVersion(null)}>
+                  关闭
+                </button>
+              </header>
+              <p>
+                仅授权名单中的在职员工可答未发布版本；试测不计入正式认证次数。
+              </p>
+              <label>
+                搜索并授权员工
+                <input
+                  value={pilotQuery}
+                  onChange={(event) => setPilotQuery(event.target.value)}
+                  placeholder="输入姓名"
+                />
+              </label>
+              {pilotCandidates.data?.items.map((employee) => (
+                <button
+                  key={employee.id}
+                  type="button"
+                  disabled={action.isPending}
+                  onClick={() =>
+                    action.mutate({
+                      type: "grant-pilot",
+                      id: pilotVersion.id,
+                      userId: employee.id,
+                    })
+                  }
+                >
+                  授权 {employee.displayName}
+                </button>
+              ))}
+              {pilotParticipants.isError && (
+                <p className="assessment-error" role="alert">
+                  {pilotParticipants.error.message}
+                </p>
+              )}
+              {action.isError && (
+                <p className="assessment-error" role="alert">
+                  {action.error.message}
+                </p>
+              )}
+              <ul className="assessment-pilot-list">
+                {pilotParticipants.data?.map((participant) => (
+                  <li key={participant.userId}>
+                    <span>
+                      <strong>{participant.displayName}</strong>
+                      <small>
+                        {participant.revokedAt
+                          ? "已撤销"
+                          : (participant.attemptStatus ?? "等待开始")}
+                      </small>
+                    </span>
+                    {!participant.revokedAt && (
+                      <button
+                        type="button"
+                        disabled={action.isPending}
+                        onClick={() =>
+                          action.mutate({
+                            type: "revoke-pilot",
+                            id: pilotVersion.id,
+                            userId: participant.userId,
+                          })
+                        }
+                      >
+                        撤销
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {qualityVersion && (
             <section
               className="assessment-quality-panel"
@@ -437,6 +624,7 @@ export default function AssessmentAdminPage() {
                   <tr>
                     <th>员工</th>
                     <th>测评</th>
+                    <th>类别</th>
                     <th>次数</th>
                     <th>状态</th>
                     <th>本次</th>
@@ -455,6 +643,7 @@ export default function AssessmentAdminPage() {
                         {attempt.assessment}
                         <small>{attempt.version}</small>
                       </td>
+                      <td>{attempt.kind === "PILOT" ? "试测" : "正式"}</td>
                       <td>第 {attempt.attemptNumber} 次</td>
                       <td>{statusLabels[attempt.status]}</td>
                       <td>{attempt.score ?? "待评分"}</td>
@@ -468,7 +657,8 @@ export default function AssessmentAdminPage() {
                         <button
                           type="button"
                           disabled={attempt.status === "IN_PROGRESS"}
-                          onClick={() => setReportAttempt(attempt.id)}
+                          aria-label={`查看 ${attempt.employee} 第 ${attempt.attemptNumber} 次测评报告`}
+                          onClick={() => setReportAttempt(attempt)}
                         >
                           查看报告
                         </button>
@@ -477,7 +667,13 @@ export default function AssessmentAdminPage() {
                           disabled={
                             action.isPending || attempt.status === "VOIDED"
                           }
-                          onClick={() => setVoiding(attempt.id)}
+                          aria-label={`作废 ${attempt.employee} 第 ${attempt.attemptNumber} 次测评`}
+                          onClick={() => {
+                            action.reset();
+                            setVoidReason("");
+                            setVoidCode("TECHNICAL");
+                            setVoiding(attempt);
+                          }}
                         >
                           作废
                         </button>
@@ -491,7 +687,7 @@ export default function AssessmentAdminPage() {
         </section>
 
         {confirmingAction && (
-          <div className="assessment-dialog-backdrop" role="presentation">
+          <AssessmentDialog>
             <section
               className="assessment-dialog"
               role="dialog"
@@ -510,6 +706,11 @@ export default function AssessmentAdminPage() {
                 {confirmingAction.type === "publish"
                   ? "发布后，当前已发布版本会自动停用，新的测评将使用此版本。"
                   : "停用后，员工无法开始新的测评，已完成记录仍会保留。"}
+              </p>
+              <p className="assessment-notice">
+                目标：{confirmingAction.target.title} · 周期{" "}
+                {confirmingAction.target.cycleKey} · 版本{" "}
+                {confirmingAction.target.version}
               </p>
               {action.isError && (
                 <p className="assessment-error" role="alert">
@@ -539,10 +740,10 @@ export default function AssessmentAdminPage() {
                 </button>
               </div>
             </section>
-          </div>
+          </AssessmentDialog>
         )}
         {voiding && (
-          <div className="assessment-dialog-backdrop" role="presentation">
+          <AssessmentDialog>
             <form
               className="assessment-dialog assessment-admin-dialog"
               role="dialog"
@@ -552,13 +753,18 @@ export default function AssessmentAdminPage() {
               onKeyDown={onVoidDialogKeyDown}
               onSubmit={(event) => {
                 event.preventDefault();
-                action.mutate({ type: "void", id: voiding });
+                action.mutate({ type: "void", id: voiding.id });
               }}
             >
               <Flag aria-hidden="true" />
               <h2 id="void-title">作废测评记录</h2>
               <p>
                 作废后该次记录保留在审计历史中，并释放测评次数。请填写可追溯原因。
+              </p>
+              <p className="assessment-notice">
+                目标：{voiding.employee} · {voiding.assessment} · 版本{" "}
+                {voiding.version} · 第 {voiding.attemptNumber} 次 ·{" "}
+                {voiding.score ?? "待评分"} 分
               </p>
               <label>
                 原因类型
@@ -580,13 +786,14 @@ export default function AssessmentAdminPage() {
                   required
                   minLength={10}
                   rows={4}
+                  maxLength={500}
                   data-dialog-initial-focus
                   value={voidReason}
                   onChange={(event) => setVoidReason(event.target.value)}
                 />
               </label>
               <div>
-                <button type="button" onClick={() => setVoiding(null)}>
+                <button type="button" onClick={closeVoidDialog}>
                   取消
                 </button>
                 <button
@@ -598,10 +805,10 @@ export default function AssessmentAdminPage() {
                 </button>
               </div>
             </form>
-          </div>
+          </AssessmentDialog>
         )}
         {reportAttempt && (
-          <div className="assessment-dialog-backdrop" role="presentation">
+          <AssessmentDialog>
             <section
               className="assessment-dialog assessment-admin-report-dialog"
               role="dialog"
@@ -613,6 +820,11 @@ export default function AssessmentAdminPage() {
               <Eye aria-hidden="true" />
               <h2 id="admin-report-title">个人报告审计预览</h2>
               <p>本次查看已经写入审计日志，仅用于培训辅导与故障处理。</p>
+              <p className="assessment-notice">
+                目标：{reportAttempt.employee} · {reportAttempt.assessment} ·
+                版本 {reportAttempt.version} · 第 {reportAttempt.attemptNumber}{" "}
+                次
+              </p>
               {report.isPending && <p>正在读取报告…</p>}
               {report.isError && (
                 <p className="assessment-error">{report.error.message}</p>
@@ -670,7 +882,7 @@ export default function AssessmentAdminPage() {
                 </button>
               </div>
             </section>
-          </div>
+          </AssessmentDialog>
         )}
         {action.isError && (
           <p className="assessment-error assessment-admin-error" role="alert">

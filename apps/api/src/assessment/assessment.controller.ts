@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Header,
   Param,
@@ -125,6 +126,12 @@ export class AssessmentAdminController {
     return this.assessment.adminVersionQuality(id);
   }
 
+  @Get("assessment-versions/:id/pilot-participants")
+  @Header("Cache-Control", "no-store")
+  pilotParticipants(@Param("id") id: string) {
+    return this.assessment.pilotParticipants(id);
+  }
+
   @Post("assessment-versions/:id/publish")
   publish(
     @Param("id") id: string,
@@ -142,6 +149,36 @@ export class AssessmentAdminController {
     @Req() req: Request,
   ) {
     return this.assessment.approveVersionGates(id, body, auth!.userId, req.ip);
+  }
+
+  @Post("assessment-versions/:id/pilot-participants")
+  grantPilotParticipant(
+    @Param("id") id: string,
+    @Body() body: unknown,
+    @CurrentAuth() auth: Express.Request["auth"],
+    @Req() req: Request,
+  ) {
+    return this.assessment.grantPilotParticipant(
+      id,
+      body,
+      auth!.userId,
+      req.ip,
+    );
+  }
+
+  @Delete("assessment-versions/:id/pilot-participants/:userId")
+  revokePilotParticipant(
+    @Param("id") id: string,
+    @Param("userId") userId: string,
+    @CurrentAuth() auth: Express.Request["auth"],
+    @Req() req: Request,
+  ) {
+    return this.assessment.revokePilotParticipant(
+      id,
+      userId,
+      auth!.userId,
+      req.ip,
+    );
   }
 
   @Post("assessment-versions/:id/retire")

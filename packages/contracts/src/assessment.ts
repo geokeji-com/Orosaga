@@ -9,6 +9,7 @@ export const assessmentAttemptStatusSchema = z.enum([
   "EXPIRED",
   "VOIDED",
 ]);
+export const assessmentAttemptKindSchema = z.enum(["FORMAL", "PILOT"]);
 export const assessmentVersionStatusSchema = z.enum([
   "DRAFT",
   "VALIDATED",
@@ -46,6 +47,7 @@ export const assessmentEligibilitySchema = z.object({
   assessmentSlug: z.string(),
   title: z.string(),
   enabled: z.boolean(),
+  mode: assessmentAttemptKindSchema.nullable(),
   status: z.enum([
     "AVAILABLE",
     "IN_PROGRESS",
@@ -84,6 +86,7 @@ export const saveAssessmentAnswerSchema = z.object({
 export const assessmentAttemptSchema = z.object({
   id: z.string().uuid(),
   status: assessmentAttemptStatusSchema,
+  kind: assessmentAttemptKindSchema,
   attemptNumber: z.number().int().positive(),
   startedAt: z.string().datetime(),
   deadlineAt: z.string().datetime(),
@@ -335,10 +338,16 @@ export const assessmentAdminVersionSchema = z.object({
 export const assessmentGateApprovalSchema = z.object({
   contentReviewStatus: z.literal("APPROVED"),
   angoffStatus: z.literal("APPROVED"),
-  pilotStatus: z.literal("APPROVED"),
+  // 发布接口仍要求 APPROVED；此处允许先保存内容与 Angoff 审核，
+  // 使受控试测可在正式发布前进行。
+  pilotStatus: assessmentHumanGateStatusSchema,
   sourceReviewStatus: z.literal("CURRENT"),
   passScore: z.number().int().min(0).max(100),
   reviewReference: z.string().min(10).max(500),
+});
+
+export const grantAssessmentPilotParticipantSchema = z.object({
+  userId: z.string().uuid(),
 });
 
 export const voidAssessmentAttemptSchema = z.object({

@@ -62,12 +62,22 @@ export type AssessmentAdminAttempt = {
   version: string;
   attemptNumber: number;
   status: "IN_PROGRESS" | "SUBMITTED" | "EXPIRED" | "VOIDED";
+  kind: "FORMAL" | "PILOT";
   score: number | null;
   firstScore: number | null;
   bestScore: number | null;
   passed: boolean;
   startedAt: string;
   submittedAt: string | null;
+};
+
+export type AssessmentPilotParticipant = {
+  userId: string;
+  displayName: string;
+  grantedAt: string;
+  revokedAt: string | null;
+  attemptId: string | null;
+  attemptStatus: "IN_PROGRESS" | "SUBMITTED" | "EXPIRED" | "VOIDED" | null;
 };
 
 export const assessmentApi = {
@@ -120,13 +130,18 @@ export const assessmentApi = {
     }>(`/api/v1/admin/assessment-attempts/${id}/report`),
   validateVersion: (id: string) =>
     api(`/api/v1/admin/assessment-versions/${id}/validate`, { method: "POST" }),
-  approveGates: (id: string, reviewReference: string, passScore: number) =>
+  approveGates: (
+    id: string,
+    reviewReference: string,
+    passScore: number,
+    pilotStatus: "PENDING_HUMAN" | "APPROVED",
+  ) =>
     api(`/api/v1/admin/assessment-versions/${id}/gates`, {
       method: "POST",
       body: jsonBody({
         contentReviewStatus: "APPROVED",
         angoffStatus: "APPROVED",
-        pilotStatus: "APPROVED",
+        pilotStatus,
         sourceReviewStatus: "CURRENT",
         reviewReference,
         passScore,
@@ -136,6 +151,22 @@ export const assessmentApi = {
     api(`/api/v1/admin/assessment-versions/${id}/publish`, { method: "POST" }),
   retireVersion: (id: string) =>
     api(`/api/v1/admin/assessment-versions/${id}/retire`, { method: "POST" }),
+  pilotParticipants: (id: string) =>
+    api<AssessmentPilotParticipant[]>(
+      `/api/v1/admin/assessment-versions/${id}/pilot-participants`,
+    ),
+  grantPilotParticipant: (id: string, userId: string) =>
+    api(`/api/v1/admin/assessment-versions/${id}/pilot-participants`, {
+      method: "POST",
+      body: jsonBody({ userId }),
+    }),
+  revokePilotParticipant: (id: string, userId: string) =>
+    api(
+      `/api/v1/admin/assessment-versions/${id}/pilot-participants/${userId}`,
+      {
+        method: "DELETE",
+      },
+    ),
   voidAttempt: (
     id: string,
     reasonCode: "TECHNICAL" | "CONTENT_ERROR" | "SECURITY" | "OTHER",

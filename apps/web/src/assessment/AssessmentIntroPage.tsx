@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { ApiError } from "../lib/api";
 import { assessmentApi } from "../lib/assessment-api";
 import { AssessmentLayout } from "./AssessmentLayout";
+import { AssessmentDialog } from "./AssessmentDialog";
 import { useDialogFocus } from "./use-dialog-focus";
 
 const statusCopy = {
@@ -66,12 +67,15 @@ export default function AssessmentIntroPage() {
     );
 
   const data = overview.data;
+  const isPilot = data.mode === "PILOT";
   const canStart = data.status === "AVAILABLE";
   const hasActive = data.status === "IN_PROGRESS" && data.activeAttemptId;
   const blockedMessage =
-    data.status in statusCopy
-      ? statusCopy[data.status as keyof typeof statusCopy]
-      : null;
+    isPilot && data.status === "UNAVAILABLE"
+      ? "当前题库版本的受控试测已经完成。"
+      : data.status in statusCopy
+        ? statusCopy[data.status as keyof typeof statusCopy]
+        : null;
   const mutationMessage =
     start.error instanceof ApiError
       ? start.error.message
@@ -82,11 +86,16 @@ export default function AssessmentIntroPage() {
       <main className="assessment-intro">
         <section className="assessment-intro-hero">
           <div>
-            <span className="eyebrow">Newcomer assessment · 新人测评</span>
-            <h1>GEO 基础能力测评</h1>
+            <span className="eyebrow">
+              {isPilot
+                ? "Controlled pilot · 受控试测"
+                : "Newcomer assessment · 新人测评"}
+            </span>
+            <h1>{isPilot ? "GEO 基础能力试测" : "GEO 基础能力测评"}</h1>
             <p>
-              结合论文证据、原始数据与移山业务场景，评估你的 GEO
-              研究、策略、交付与治理能力。
+              {isPilot
+                ? "你受邀参与发布前试测。本次结果只用于题库质量分析，不计入认证或绩效。"
+                : "结合论文证据、原始数据与移山业务场景，评估你的 GEO 研究、策略、交付与治理能力。"}
             </p>
           </div>
           <div className="assessment-score-seal" aria-label="测评满分 100 分">
@@ -108,8 +117,8 @@ export default function AssessmentIntroPage() {
           </article>
           <article>
             <RotateCcw aria-hidden="true" />
-            <strong>最多 3 次</strong>
-            <span>每天最多参加 1 次</span>
+            <strong>{isPilot ? "仅 1 次试测" : "最多 3 次"}</strong>
+            <span>{isPilot ? "不占用正式认证机会" : "每天最多参加 1 次"}</span>
           </article>
           <article>
             <BarChart3 aria-hidden="true" />
@@ -188,7 +197,11 @@ export default function AssessmentIntroPage() {
                   setConfirming(true);
                 }}
               >
-                {start.isPending ? "正在创建…" : "开始测评"}
+                {start.isPending
+                  ? "正在创建…"
+                  : isPilot
+                    ? "开始试测"
+                    : "开始测评"}
                 <ArrowRight size={17} aria-hidden="true" />
               </button>
             )}
@@ -202,7 +215,9 @@ export default function AssessmentIntroPage() {
           >
             <div>
               <span className="eyebrow">Attempts · 历次测评</span>
-              <h2 id="assessment-history-title">你的测评记录</h2>
+              <h2 id="assessment-history-title">
+                {isPilot ? "你的试测记录" : "你的测评记录"}
+              </h2>
             </div>
             <div className="assessment-history-list">
               {data.history.map((attempt) => (
@@ -224,7 +239,7 @@ export default function AssessmentIntroPage() {
           </section>
         )}
         {confirming && (
-          <div className="assessment-dialog-backdrop" role="presentation">
+          <AssessmentDialog>
             <section
               className="assessment-dialog"
               role="dialog"
@@ -234,9 +249,13 @@ export default function AssessmentIntroPage() {
               onKeyDown={onStartDialogKeyDown}
             >
               <Clock3 aria-hidden="true" />
-              <h2 id="start-confirm-title">确认开始测评？</h2>
+              <h2 id="start-confirm-title">
+                确认开始{isPilot ? "试测" : "测评"}？
+              </h2>
               <p>
-                确认后立即开始 30 分钟计时，同时占用当天和本周期的一次测评机会。
+                {isPilot
+                  ? "确认后立即开始 30 分钟计时。本次仅用于题库试测，不占用正式认证机会。"
+                  : "确认后立即开始 30 分钟计时，同时占用当天和本周期的一次测评机会。"}
               </p>
               <div>
                 <button
@@ -257,7 +276,7 @@ export default function AssessmentIntroPage() {
                 </button>
               </div>
             </section>
-          </div>
+          </AssessmentDialog>
         )}
       </main>
     </AssessmentLayout>

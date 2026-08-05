@@ -31,12 +31,21 @@ export function useDialogFocus<T extends HTMLElement>({
         ? document.activeElement
         : null;
     const dialog = dialogRef.current;
+    const appRoot = document.getElementById("root");
+    const hadInert = appRoot?.hasAttribute("inert") ?? false;
+    const previousOverflow = document.body.style.overflow;
+    appRoot?.setAttribute("inert", "");
+    document.body.style.overflow = "hidden";
     const initial =
       dialog?.querySelector<HTMLElement>("[data-dialog-initial-focus]") ??
       dialog?.querySelector<HTMLElement>(focusableSelector) ??
       dialog;
     initial?.focus();
-    return () => previousFocus?.focus();
+    return () => {
+      if (!hadInert) appRoot?.removeAttribute("inert");
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
   }, [open]);
 
   const onKeyDown = (event: ReactKeyboardEvent<T>) => {

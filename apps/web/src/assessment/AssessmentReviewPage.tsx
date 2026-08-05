@@ -10,6 +10,7 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import { assessmentApi } from "../lib/assessment-api";
 import { AssessmentLayout, AssessmentPageState } from "./AssessmentLayout";
+import { AssessmentDialog } from "./AssessmentDialog";
 import { ASSESSMENT_DURATION_MS, formatDuration } from "./assessment-utils";
 import { useDialogFocus } from "./use-dialog-focus";
 
@@ -183,7 +184,7 @@ export default function AssessmentReviewPage() {
         </div>
 
         {confirming && (
-          <div className="assessment-dialog-backdrop" role="presentation">
+          <AssessmentDialog>
             <section
               className="assessment-dialog"
               role="dialog"
@@ -228,7 +229,7 @@ export default function AssessmentReviewPage() {
                 </button>
               </div>
             </section>
-          </div>
+          </AssessmentDialog>
         )}
       </main>
     </AssessmentLayout>
