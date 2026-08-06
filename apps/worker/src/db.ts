@@ -7,7 +7,12 @@ const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
 export const prisma = new PrismaClient({
   adapter: new PrismaPg(
-    { connectionString: databaseUrl },
+    {
+      connectionString: databaseUrl,
+      max: 2,
+      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 10_000,
+    },
     { schema: databaseSchemaFromUrl(databaseUrl) },
   ),
 });
@@ -15,7 +20,7 @@ export const prisma = new PrismaClient({
 export type AdvisoryLockClient = Pick<Client, "connect" | "query" | "end">;
 
 const createAdvisoryLockClient = (): AdvisoryLockClient =>
-  new Client({ connectionString: databaseUrl });
+  new Client({ connectionString: databaseUrl, connectionTimeoutMillis: 5_000 });
 
 export async function withAdvisoryLock<T>(
   name: string,

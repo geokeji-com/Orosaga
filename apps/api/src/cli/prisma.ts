@@ -7,7 +7,12 @@ export function createPrismaClient() {
   if (!databaseUrl) throw new Error("DATABASE_URL is required");
   return new PrismaClient({
     adapter: new PrismaPg(
-      { connectionString: databaseUrl },
+      {
+        connectionString: databaseUrl,
+        max: 1,
+        connectionTimeoutMillis: 5_000,
+        idleTimeoutMillis: 10_000,
+      },
       { schema: databaseSchemaFromUrl(databaseUrl) },
     ),
   });

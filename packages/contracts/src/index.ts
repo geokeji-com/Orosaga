@@ -3,5 +3,6 @@ export * from "./assessment.js";
 export * from "./common.js";
 export * from "./company.js";
 export * from "./content.js";
+export * from "./course.js";
 export * from "./organization.js";
 export * from "./portal.js";

@@ -13,6 +13,16 @@ export class HealthController {
   }
 
   @Public()
+  @Get("version")
+  version() {
+    return {
+      version: process.env.APP_VERSION ?? "1.0.0",
+      commit: process.env.APP_COMMIT ?? "development",
+      builtAt: process.env.APP_BUILT_AT ?? "development",
+    };
+  }
+
+  @Public()
   @Get("readyz")
   async ready() {
     try {

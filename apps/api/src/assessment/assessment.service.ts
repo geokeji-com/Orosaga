@@ -252,34 +252,15 @@ export class AssessmentService {
     const pilot = await this.pilotContext(slug, userId, now);
     if (pilot) return this.pilotOverview(pilot, userId, now);
     const context = await this.publishedContext(slug, now);
-    if (!context.assessment)
+    if (!context.assessment && slug !== "geo-foundations")
       throw new NotFoundException({
         code: "ASSESSMENT_NOT_FOUND",
         message: "测评不存在",
       });
+    if (!context.assessment)
+      return this.unavailableOverview(slug, "GEO 基础能力测评");
     if (!context.cycle || !context.version)
-      return {
-        assessmentSlug: slug,
-        title: context.assessment.title,
-        enabled: context.assessment.enabled,
-        mode: null,
-        status: "UNAVAILABLE",
-        cycleKey: null,
-        version: null,
-        dailyLimit: 1,
-        maxAttempts: 3,
-        attemptsUsed: 0,
-        attemptsRemaining: 0,
-        attemptedToday: false,
-        nextEligibleAt: null,
-        activeAttemptId: null,
-        activeDeadlineAt: null,
-        latestScore: null,
-        bestScore: null,
-        passed: false,
-        passScore: null,
-        history: [],
-      };
+      return this.unavailableOverview(slug, context.assessment.title);
 
     const attempts = await this.prisma.assessmentAttempt.findMany({
       where: { userId, cycleId: context.cycle.id, kind: "FORMAL" },
@@ -364,6 +345,31 @@ export class AssessmentService {
       ),
       passScore: context.version.passScore,
       history: completed.map((attempt) => attemptResponse(attempt)),
+    };
+  }
+
+  private unavailableOverview(slug: string, title: string) {
+    return {
+      assessmentSlug: slug,
+      title,
+      enabled: false,
+      mode: null,
+      status: "UNAVAILABLE" as const,
+      cycleKey: null,
+      version: null,
+      dailyLimit: 1,
+      maxAttempts: 3,
+      attemptsUsed: 0,
+      attemptsRemaining: 0,
+      attemptedToday: false,
+      nextEligibleAt: null,
+      activeAttemptId: null,
+      activeDeadlineAt: null,
+      latestScore: null,
+      bestScore: null,
+      passed: false,
+      passScore: null,
+      history: [],
     };
   }
 

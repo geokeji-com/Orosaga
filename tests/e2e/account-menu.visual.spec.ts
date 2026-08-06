@@ -42,7 +42,7 @@ for (const target of [
     await expect(page.getByLabel("当前账户")).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     await page.addStyleTag({
-      content: "main { visibility: hidden !important; }",
+      content: "#top, .admin-layout { visibility: hidden !important; }",
     });
     await expect(page).toHaveScreenshot(`${target.name}-account-menu.png`, {
       fullPage: false,
