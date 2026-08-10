@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import type { Department, Employee } from "@orosaga/contracts";
 import { api } from "./lib/api";
-import { compareEmployees } from "./organization-order";
+import { compareEmployees, isDepartmentHead } from "./organization-order";
 import { Brand } from "./components/Brand";
 import { AccountMenu } from "./components/AccountMenu";
 
@@ -337,7 +337,7 @@ export default function OrganizationPage() {
                 </div>
                 <p className="executive-description">公司方向与经营协同</p>
                 <div className="executive-people">
-                  {executivePeople.map((person, index) => (
+                  {executivePeople.map((person) => (
                     <button
                       type="button"
                       className="person-row executive-person"
@@ -349,9 +349,7 @@ export default function OrganizationPage() {
                         <strong>{person.displayName}</strong>
                         <small>{person.title}</small>
                       </span>
-                      {(person.role === "ADMIN" || index === 0) && (
-                        <em>HEAD · 负责人</em>
-                      )}
+                      {isDepartmentHead(person) && <em>HEAD · 负责人</em>}
                       <ArrowUpRight size={16} />
                     </button>
                   ))}
@@ -389,11 +387,11 @@ export default function OrganizationPage() {
                     </p>
                     <div className="department-members">
                       {people.length ? (
-                        people.map((person, personIndex) => (
+                        people.map((person) => (
                           <button
                             type="button"
                             className={
-                              person.role === "ADMIN" || personIndex === 0
+                              isDepartmentHead(person)
                                 ? "person-row is-head"
                                 : "person-row"
                             }
@@ -405,9 +403,7 @@ export default function OrganizationPage() {
                               <strong>{person.displayName}</strong>
                               <small>{person.title}</small>
                             </span>
-                            {(person.role === "ADMIN" || personIndex === 0) && (
-                              <em>HEAD · 负责人</em>
-                            )}
+                            {isDepartmentHead(person) && <em>HEAD · 负责人</em>}
                             <ChevronRight size={16} />
                           </button>
                         ))
