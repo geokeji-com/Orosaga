@@ -1,4 +1,15 @@
-import type { Employee } from "@orosaga/contracts";
+import type { Department, Employee } from "@orosaga/contracts";
+
+export function departmentsWithMembers<
+  TDepartment extends Pick<Department, "id">,
+>(departments: TDepartment[], members: Pick<Employee, "departmentId">[]) {
+  const populatedDepartmentIds = new Set(
+    members.map((member) => member.departmentId).filter(Boolean),
+  );
+  return departments.filter((department) =>
+    populatedDepartmentIds.has(department.id),
+  );
+}
 
 export function isDepartmentHead(person: Pick<Employee, "title">) {
   return /(?:部门|部)负责人$/.test(person.title.trim());

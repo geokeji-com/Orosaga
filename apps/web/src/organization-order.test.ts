@@ -1,5 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { compareEmployees, isDepartmentHead } from "./organization-order";
+import {
+  compareEmployees,
+  departmentsWithMembers,
+  isDepartmentHead,
+} from "./organization-order";
+
+describe("departmentsWithMembers", () => {
+  it("omits departments without active members", () => {
+    const departments = [
+      { id: "sales", name: "销售部", parentId: null },
+      { id: "finance", name: "财务部", parentId: null },
+      { id: "email", name: "仅邮箱", parentId: null },
+    ];
+
+    expect(
+      departmentsWithMembers(departments, [
+        { departmentId: "sales" },
+        { departmentId: "sales" },
+      ]),
+    ).toEqual([{ id: "sales", name: "销售部", parentId: null }]);
+  });
+});
 
 describe("compareEmployees", () => {
   it("sorts independently of database insertion order", () => {
