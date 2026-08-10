@@ -5,7 +5,6 @@ import {
   ArrowUpRight,
   BriefcaseBusiness,
   ChevronRight,
-  CircleUserRound,
   Mail,
   MapPin,
   Network,
@@ -16,7 +15,11 @@ import {
 } from "lucide-react";
 import type { Department, Employee } from "@orosaga/contracts";
 import { api } from "./lib/api";
-import { compareEmployees, isDepartmentHead } from "./organization-order";
+import {
+  compareEmployees,
+  departmentsWithMembers,
+  isDepartmentHead,
+} from "./organization-order";
 import { Brand } from "./components/Brand";
 import { AccountMenu } from "./components/AccountMenu";
 
@@ -220,9 +223,13 @@ export default function OrganizationPage() {
   );
   const orderedDepartments = departments.data ?? [];
   const allPeople = members.data ?? [];
+  const populatedDepartments = departmentsWithMembers(
+    orderedDepartments,
+    allPeople,
+  );
   const executiveDepartment =
-    orderedDepartments.find((item) => /总裁|管理层|管理部/.test(item.name)) ??
-    orderedDepartments.find(
+    populatedDepartments.find((item) => /总裁|管理层|管理部/.test(item.name)) ??
+    populatedDepartments.find(
       (item) =>
         !item.parentId &&
         allPeople.some((person) => person.departmentId === item.id),
@@ -230,13 +237,20 @@ export default function OrganizationPage() {
   const executivePeople = executiveDepartment
     ? visible.filter((person) => person.departmentId === executiveDepartment.id)
     : [];
-  const branchDepartments = orderedDepartments
+  const branchDepartments = populatedDepartments
     .filter((item) => item.id !== executiveDepartment?.id)
     .sort(
       (left, right) =>
         departmentPresentation(left.name).order -
         departmentPresentation(right.name).order,
     );
+  const displayedBranchDepartments = branchDepartments
+    .filter((item) => !departmentId || item.id === departmentId)
+    .map((department) => ({
+      department,
+      people: visible.filter((person) => person.departmentId === department.id),
+    }))
+    .filter(({ people }) => people.length > 0);
 
   if (departments.isPending || members.isPending)
     return <main className="route-state">正在读取组织资料…</main>;
@@ -324,6 +338,7 @@ export default function OrganizationPage() {
         </section>
         <section className="org-chart section-wrap" aria-label="组织架构图">
           {executiveDepartment &&
+            executivePeople.length > 0 &&
             (!departmentId || departmentId === executiveDepartment.id) && (
               <div className="executive-node">
                 <div className="executive-department-header">
@@ -356,67 +371,55 @@ export default function OrganizationPage() {
                 </div>
               </div>
             )}
-          {!departmentId && executiveDepartment && (
-            <div className="org-trunk" aria-hidden="true" />
-          )}
+          {!departmentId &&
+            executiveDepartment &&
+            executivePeople.length > 0 && (
+              <div className="org-trunk" aria-hidden="true" />
+            )}
           <div className="org-branches">
-            {branchDepartments
-              ?.filter((item) => !departmentId || item.id === departmentId)
-              .map((department) => {
-                const presentation = departmentPresentation(department.name);
-                const people = visible.filter(
-                  (person) => person.departmentId === department.id,
-                );
-                return (
-                  <section
-                    className={`department-panel department-${presentation.color}`}
-                    key={department.id}
-                    aria-labelledby={`${department.id}-title`}
-                  >
-                    <div className="department-header">
-                      <div>
-                        <span>{presentation.short}</span>
-                        <h2 id={`${department.id}-title`}>{department.name}</h2>
-                      </div>
-                      <span className="department-count">
-                        {people.length} 人
-                      </span>
+            {displayedBranchDepartments.map(({ department, people }) => {
+              const presentation = departmentPresentation(department.name);
+              return (
+                <section
+                  className={`department-panel department-${presentation.color}`}
+                  key={department.id}
+                  aria-labelledby={`${department.id}-title`}
+                >
+                  <div className="department-header">
+                    <div>
+                      <span>{presentation.short}</span>
+                      <h2 id={`${department.id}-title`}>{department.name}</h2>
                     </div>
-                    <p className="department-description">
-                      {presentation.description}
-                    </p>
-                    <div className="department-members">
-                      {people.length ? (
-                        people.map((person) => (
-                          <button
-                            type="button"
-                            className={
-                              isDepartmentHead(person)
-                                ? "person-row is-head"
-                                : "person-row"
-                            }
-                            onClick={() => setSelected(person)}
-                            key={person.id}
-                          >
-                            <Avatar person={person} />
-                            <span className="person-copy">
-                              <strong>{person.displayName}</strong>
-                              <small>{person.title}</small>
-                            </span>
-                            {isDepartmentHead(person) && <em>HEAD · 负责人</em>}
-                            <ChevronRight size={16} />
-                          </button>
-                        ))
-                      ) : (
-                        <div className="organization-empty">
-                          <CircleUserRound size={19} />
-                          <span>没有匹配到这组同事</span>
-                        </div>
-                      )}
-                    </div>
-                  </section>
-                );
-              })}
+                    <span className="department-count">{people.length} 人</span>
+                  </div>
+                  <p className="department-description">
+                    {presentation.description}
+                  </p>
+                  <div className="department-members">
+                    {people.map((person) => (
+                      <button
+                        type="button"
+                        className={
+                          isDepartmentHead(person)
+                            ? "person-row is-head"
+                            : "person-row"
+                        }
+                        onClick={() => setSelected(person)}
+                        key={person.id}
+                      >
+                        <Avatar person={person} />
+                        <span className="person-copy">
+                          <strong>{person.displayName}</strong>
+                          <small>{person.title}</small>
+                        </span>
+                        {isDepartmentHead(person) && <em>HEAD · 负责人</em>}
+                        <ChevronRight size={16} />
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         </section>
         <section
